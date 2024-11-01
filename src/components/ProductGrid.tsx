@@ -1,54 +1,25 @@
 import React from 'react';
+import { useQuery } from 'urql';
 import { useCart } from '../context/CartContext';
+import { PRODUCTS_QUERY } from '../services/shopify';
 import { Product } from '../types';
-
-const products: Product[] = [
-  {
-    id: 1,
-    name: 'Premium Hondenbrok',
-    price: 24.99,
-    image: 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Honden'
-  },
-  {
-    id: 2,
-    name: 'Kattenspeeltje Set',
-    price: 12.99,
-    image: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Katten'
-  },
-  {
-    id: 3,
-    name: 'Vogelkooi Deluxe',
-    price: 49.99,
-    image: 'https://images.unsplash.com/photo-1520808663317-647b476a81b9?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Vogels'
-  },
-  {
-    id: 4,
-    name: 'Aquarium Filter',
-    price: 34.99,
-    image: 'https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Vissen'
-  },
-  {
-    id: 5,
-    name: 'Katten Klimtoren',
-    price: 89.99,
-    image: 'https://images.unsplash.com/photo-1545249390-6bdfa286032f?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Katten'
-  },
-  {
-    id: 6,
-    name: 'Honden Speelgoed Set',
-    price: 19.99,
-    image: 'https://images.unsplash.com/photo-1535930891776-0c2dfb7fda1a?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Honden'
-  }
-];
 
 const ProductGrid: React.FC = () => {
   const { addToCart } = useCart();
+  const [result] = useQuery({ query: PRODUCTS_QUERY });
+
+  const { data, fetching, error } = result;
+
+  if (fetching) return <div className="text-center py-8">Loading products...</div>;
+  if (error) return <div className="text-center py-8 text-red-500">Error loading products: {error.message}</div>;
+
+  const products: Product[] = data.products.edges.map((edge: any) => ({
+    id: parseInt(edge.node.id.split('/').pop()),
+    name: edge.node.title,
+    price: parseFloat(edge.node.priceRange.minVariantPrice.amount),
+    image: edge.node.images.edges[0]?.node.url || 'https://via.placeholder.com/400',
+    category: edge.node.productType || 'General'
+  }));
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
