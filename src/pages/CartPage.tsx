@@ -1,13 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { Trash2, MinusCircle, PlusCircle, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const CartPage: React.FC = () => {
-  const { cart, removeFromCart, updateQuantity } = useCart();
+  const { cart, removeFromCart, updateQuantity, createShopifyCheckout } = useCart();
+  const [isLoading, setIsLoading] = useState(false);
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingCost = subtotal >= 50 ? 0 : 4.95;
   const total = subtotal + shippingCost;
+
+  const handleCheckout = async () => {
+    setIsLoading(true);
+    try {
+      const checkout = await createShopifyCheckout();
+      window.location.href = checkout.webUrl;
+    } catch (error) {
+      console.error('Checkout error:', error);
+      alert('Er is een fout opgetreden bij het afrekenen. Probeer het opnieuw.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (cart.length === 0) {
     return (
@@ -103,8 +117,14 @@ const CartPage: React.FC = () => {
                 </div>
               </div>
             </div>
-            <button className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors">
-              Afrekenen
+            <button 
+              onClick={handleCheckout}
+              disabled={isLoading}
+              className={`w-full bg-blue-500 text-white py-3 rounded-lg transition-colors ${
+                isLoading ? 'opacity-75 cursor-not-allowed' : 'hover:bg-blue-600'
+              }`}
+            >
+              {isLoading ? 'Bezig met laden...' : 'Afrekenen'}
             </button>
             <p className="text-sm text-gray-600 mt-4 text-center">
               Veilig betalen met iDEAL, creditcard of PayPal
