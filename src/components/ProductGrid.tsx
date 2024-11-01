@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useQuery } from 'urql';
 import { useCart } from '../context/CartContext';
 import { PRODUCTS_QUERY } from '../services/shopify';
@@ -8,17 +8,43 @@ const ProductGrid: React.FC = () => {
   const { addToCart } = useCart();
   const [result] = useQuery({ query: PRODUCTS_QUERY });
 
-  const { data, fetching, error } = result;
+  useEffect(() => {
+    if (result.error) {
+      console.error('GraphQL Error:', result.error);
+    }
+  }, [result.error]);
 
-  if (fetching) return <div className="text-center py-8">Loading products...</div>;
-  if (error) return <div className="text-center py-8 text-red-500">Error loading products: {error.message}</div>;
+  if (result.fetching) {
+    return (
+      <div className="text-center py-8">
+        <p>Loading products...</p>
+      </div>
+    );
+  }
 
-  const products: Product[] = data.products.edges.map((edge: any) => ({
+  if (result.error) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-red-500">Error loading products</p>
+      </div>
+    );
+  }
+
+  if (!result.data) {
+    return (
+      <div className="text-center py-8">
+        <p>No products found</p>
+      </div>
+    );
+  }
+
+  const products: Product[] = result.data.products.edges.map((edge: any) => ({
     id: parseInt(edge.node.id.split('/').pop()),
     name: edge.node.title,
     price: parseFloat(edge.node.priceRange.minVariantPrice.amount),
     image: edge.node.images.edges[0]?.node.url || 'https://via.placeholder.com/400',
-    category: edge.node.productType || 'General'
+    category: edge.node.productType || 'General',
+    variantId: edge.node.variants.edges[0]?.node.id
   }));
 
   return (

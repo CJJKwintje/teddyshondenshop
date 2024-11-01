@@ -21,6 +21,17 @@ export const PRODUCTS_QUERY = `
           id
           title
           description
+          variants(first: 1) {
+            edges {
+              node {
+                id
+                price {
+                  amount
+                  currencyCode
+                }
+              }
+            }
+          }
           priceRange {
             minVariantPrice {
               amount
@@ -41,3 +52,41 @@ export const PRODUCTS_QUERY = `
     }
   }
 `;
+
+export const CREATE_CHECKOUT_MUTATION = `
+  mutation checkoutCreate($lineItems: [CheckoutLineItemInput!]!) {
+    checkoutCreate(input: {
+      lineItems: $lineItems
+    }) {
+      checkout {
+        id
+        webUrl
+        totalPriceV2 {
+          amount
+          currencyCode
+        }
+      }
+      checkoutUserErrors {
+        code
+        field
+        message
+      }
+    }
+  }
+`;
+
+export const createCheckout = async (lineItems: { variantId: string; quantity: number }[]) => {
+  const result = await shopifyClient.mutation(CREATE_CHECKOUT_MUTATION, {
+    lineItems
+  }).toPromise();
+
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+
+  if (result.data?.checkoutCreate?.checkoutUserErrors?.length > 0) {
+    throw new Error(result.data.checkoutCreate.checkoutUserErrors[0].message);
+  }
+
+  return result.data.checkoutCreate.checkout;
+};

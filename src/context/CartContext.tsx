@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState } from 'react';
-import { Product, CartItem } from '../types';
+import { Product, CartItem, CheckoutData } from '../types';
+import { createCheckout } from '../services/shopify';
 
 interface CartContextType {
   cart: CartItem[];
   addToCart: (product: Product) => void;
   removeFromCart: (productId: number) => void;
   updateQuantity: (productId: number, quantity: number) => void;
+  createShopifyCheckout: () => Promise<CheckoutData>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -39,8 +41,32 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  const createShopifyCheckout = async () => {
+    const lineItems = cart.map(item => ({
+      variantId: item.variantId,
+      quantity: item.quantity
+    }));
+
+    try {
+      const checkout = await createCheckout(lineItems);
+      return {
+        webUrl: checkout.webUrl,
+        id: checkout.id
+      };
+    } catch (error) {
+      console.error('Error creating checkout:', error);
+      throw error;
+    }
+  };
+
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity }}>
+    <CartContext.Provider value={{ 
+      cart, 
+      addToCart, 
+      removeFromCart, 
+      updateQuantity,
+      createShopifyCheckout 
+    }}>
       {children}
     </CartContext.Provider>
   );
