@@ -4,7 +4,6 @@ import { useQuery } from 'urql';
 import { gql } from 'urql';
 import {
   ArrowLeft,
-  Tag,
   Truck,
   Shield,
   RefreshCw,
@@ -219,12 +218,6 @@ export default function ProductPage() {
             {/* Product Info */}
             <div className="space-y-8">
               <div>
-                <div className="flex items-center gap-3 mb-3">
-                  <Tag className="w-5 h-5 text-blue-500" />
-                  <span className="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                    {product.productType || 'General'}
-                  </span>
-                </div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-4">
                   {product.title}
                 </h1>

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from 'urql';
 import { gql } from 'urql';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft, SlidersHorizontal } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import SearchFilters from '../components/SearchFilters';
+import MobileFilterMenu from '../components/MobileFilterMenu';
 
 const COLLECTION_QUERY = gql`
   query GetCollection($handle: String!) {
@@ -58,10 +59,12 @@ const categoryConfig = {
 
 const CategoryPage: React.FC = () => {
   const { category } = useParams<{ category: string }>();
+  const navigate = useNavigate();
   const categoryData = category
     ? categoryConfig[category as keyof typeof categoryConfig]
     : null;
 
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
@@ -169,36 +172,46 @@ const CategoryPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <button
+          onClick={() => navigate(-1)}
+          className="mb-8 text-gray-600 hover:text-gray-900 flex items-center gap-2 group"
+        >
+          <ArrowLeft className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
+          Terug
+        </button>
+
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
             {collection?.title}
           </h1>
-          {collection?.descriptionHtml ? (
-            <div
-              className="text-gray-600 max-w-none"
-              dangerouslySetInnerHTML={{ __html: collection.descriptionHtml }}
-            />
-          ) : collection?.description ? (
-            <p className="text-gray-600">{collection.description}</p>
-          ) : null}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
-          <aside className="lg:w-72 flex-shrink-0">
-            <div className="sticky top-8">
-              <SearchFilters
-                availableTags={availableTags}
-                selectedTags={selectedTags}
-                selectedPriceRanges={selectedPriceRanges}
-                onFilterChange={handleFilterChange}
-                onClearFilters={clearFilters}
-              />
-            </div>
+          {/* Desktop Filters */}
+          <aside className="hidden lg:block lg:w-72 flex-shrink-0">
+            <SearchFilters
+              availableTags={availableTags}
+              selectedTags={selectedTags}
+              selectedPriceRanges={selectedPriceRanges}
+              onFilterChange={handleFilterChange}
+              onClearFilters={clearFilters}
+            />
           </aside>
 
           <main className="flex-1">
-            <div className="mb-6 text-sm text-gray-500">
-              {filteredProducts.length} producten gevonden
+            <div className="flex items-center justify-between mb-6">
+              <div className="text-sm text-gray-500">
+                {filteredProducts.length} producten gevonden
+              </div>
+              
+              {/* Mobile Filter Button */}
+              <button
+                onClick={() => setIsFilterMenuOpen(true)}
+                className="lg:hidden inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                Filters
+              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -225,9 +238,36 @@ const CategoryPage: React.FC = () => {
                 </p>
               </div>
             )}
+
+            {(collection?.descriptionHtml || collection?.description) && (
+              <div className="mt-16 bg-white rounded-xl p-8 shadow-sm">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                  Teddy's {collection?.title}
+                </h2>
+                {collection.descriptionHtml ? (
+                  <div
+                    className="prose prose-blue max-w-none"
+                    dangerouslySetInnerHTML={{ __html: collection.descriptionHtml }}
+                  />
+                ) : (
+                  <p className="text-gray-600">{collection.description}</p>
+                )}
+              </div>
+            )}
           </main>
         </div>
       </div>
+
+      {/* Mobile Filter Menu */}
+      <MobileFilterMenu
+        isOpen={isFilterMenuOpen}
+        onClose={() => setIsFilterMenuOpen(false)}
+        availableTags={availableTags}
+        selectedTags={selectedTags}
+        selectedPriceRanges={selectedPriceRanges}
+        onFilterChange={handleFilterChange}
+        onClearFilters={clearFilters}
+      />
     </div>
   );
 };

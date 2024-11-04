@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { ShoppingCart, Check, ImageOff } from 'lucide-react';
-import ProductBadge from './ProductBadge';
 
 interface ProductCardProps {
   id: number;
@@ -80,7 +79,6 @@ export default function ProductCard({
             altText={altText}
             title={title}
           />
-          <ProductBadge category={category} />
         </div>
       </div>
       
