@@ -75,10 +75,20 @@ export const CREATE_CHECKOUT_MUTATION = `
   }
 `;
 
-export const createCheckout = async (lineItems: { variantId: string; quantity: number }[]) => {
-  const result = await shopifyClient.mutation(CREATE_CHECKOUT_MUTATION, {
-    lineItems
-  }).toPromise();
+export const createCheckout = async (
+  lineItems: { variantId: string; quantity: number }[]
+) => {
+  // Ensure variant IDs are in the correct format
+  const formattedLineItems = lineItems.map(item => ({
+    ...item,
+    variantId: item.variantId
+  }));
+
+  const result = await shopifyClient
+    .mutation(CREATE_CHECKOUT_MUTATION, {
+      lineItems: formattedLineItems,
+    })
+    .toPromise();
 
   if (result.error) {
     throw new Error(result.error.message);

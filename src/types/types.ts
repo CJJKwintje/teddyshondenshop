@@ -4,7 +4,7 @@ export interface Product {
   price: number;
   image: string;
   category: string;
-  variantId?: string; // Add Shopify variant ID
+  variantId: string; // This is the Shopify variant ID
 }
 
 export interface CartItem extends Product {

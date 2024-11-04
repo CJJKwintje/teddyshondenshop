@@ -2,7 +2,17 @@ import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from 'urql';
 import { gql } from 'urql';
-import { ArrowLeft, Tag, Truck, Shield, RefreshCw, Loader2, ShoppingCart, Check, ImageOff } from 'lucide-react';
+import {
+  ArrowLeft,
+  Tag,
+  Truck,
+  Shield,
+  RefreshCw,
+  Loader2,
+  ShoppingCart,
+  Check,
+  ImageOff,
+} from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
 const PRODUCT_QUERY = gql`
@@ -14,6 +24,17 @@ const PRODUCT_QUERY = gql`
       descriptionHtml
       productType
       tags
+      variants(first: 1) {
+        edges {
+          node {
+            id
+            price {
+              amount
+              currencyCode
+            }
+          }
+        }
+      }
       images(first: 5) {
         edges {
           node {
@@ -46,6 +67,36 @@ const BenefitItem = ({ icon: Icon, title, description }: any) => (
   </div>
 );
 
+const ProductImage = ({ image, alt }: { image: any; alt: string }) => {
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [hasError, setHasError] = React.useState(false);
+
+  return (
+    <div className="w-full h-full bg-white flex items-center justify-center p-8">
+      {!hasError ? (
+        <>
+          {isLoading && (
+            <div className="absolute inset-0 animate-pulse bg-gray-50" />
+          )}
+          <img
+            src={image.originalSrc}
+            alt={alt}
+            onLoad={() => setIsLoading(false)}
+            onError={() => setHasError(true)}
+            className={`max-w-full max-h-full object-contain transition-opacity ${
+              isLoading ? 'opacity-0' : 'opacity-100'
+            }`}
+          />
+        </>
+      ) : (
+        <div className="flex items-center justify-center">
+          <ImageOff className="w-12 h-12 text-gray-400" />
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function ProductPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -59,36 +110,6 @@ export default function ProductPage() {
   });
 
   const { data, fetching, error } = result;
-
-  const ProductImage = ({ image, alt }: { image: any; alt: string }) => {
-    const [isLoading, setIsLoading] = React.useState(true);
-    const [hasError, setHasError] = React.useState(false);
-
-    return (
-      <div className="w-full h-full bg-white flex items-center justify-center p-8">
-        {!hasError ? (
-          <>
-            {isLoading && (
-              <div className="absolute inset-0 animate-pulse bg-gray-50" />
-            )}
-            <img
-              src={image.originalSrc}
-              alt={alt}
-              onLoad={() => setIsLoading(false)}
-              onError={() => setHasError(true)}
-              className={`max-w-full max-h-full object-contain transition-opacity ${
-                isLoading ? 'opacity-0' : 'opacity-100'
-              }`}
-            />
-          </>
-        ) : (
-          <div className="flex items-center justify-center">
-            <ImageOff className="w-12 h-12 text-gray-400" />
-          </div>
-        )}
-      </div>
-    );
-  };
 
   if (fetching) {
     return (
@@ -134,6 +155,7 @@ export default function ProductPage() {
   const { product } = data;
   const images = product.images.edges.map(({ node }: any) => node);
   const price = parseFloat(product.priceRange.minVariantPrice.amount);
+  const variantId = product.variants.edges[0]?.node.id;
 
   const handleAddToCart = () => {
     addToCart({
@@ -142,7 +164,7 @@ export default function ProductPage() {
       price,
       image: images[0].originalSrc,
       category: product.productType,
-      variantId: parseInt(id as string),
+      variantId: variantId,
     });
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 2000);
@@ -164,7 +186,7 @@ export default function ProductPage() {
             {/* Image Gallery */}
             <div className="space-y-6">
               <div className="aspect-square rounded-xl overflow-hidden bg-white border border-gray-100">
-                <ProductImage 
+                <ProductImage
                   image={images[selectedImage]}
                   alt={images[selectedImage].altText || product.title}
                 />
@@ -208,14 +230,20 @@ export default function ProductPage() {
                 </h1>
                 {product.description && (
                   <div className="prose prose-sm max-w-none text-gray-600">
-                    <div dangerouslySetInnerHTML={{ __html: product.descriptionHtml || product.description }} />
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: product.descriptionHtml || product.description,
+                      }}
+                    />
                   </div>
                 )}
               </div>
 
               {product.tags.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-medium text-gray-900 mb-3">Tags</h3>
+                  <h3 className="text-sm font-medium text-gray-900 mb-3">
+                    Tags
+                  </h3>
                   <div className="flex flex-wrap gap-2">
                     {product.tags.map((tag: string) => (
                       <span
@@ -251,7 +279,9 @@ export default function ProductPage() {
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <p className="text-sm text-gray-500">Prijs</p>
-                    <p className="text-3xl font-bold text-gray-900">€{price.toFixed(2)}</p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      €{price.toFixed(2)}
+                    </p>
                   </div>
                   <button
                     onClick={handleAddToCart}
