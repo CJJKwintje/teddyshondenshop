@@ -53,12 +53,14 @@ const categoryConfig = {
   },
   hondentraining: {
     collectionHandle: 'hondentraining',
-  }
+  },
 };
 
 const CategoryPage: React.FC = () => {
   const { category } = useParams<{ category: string }>();
-  const categoryData = category ? categoryConfig[category as keyof typeof categoryConfig] : null;
+  const categoryData = category
+    ? categoryConfig[category as keyof typeof categoryConfig]
+    : null;
 
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -75,8 +77,10 @@ const CategoryPage: React.FC = () => {
 
   useEffect(() => {
     if (data?.collection?.products?.edges) {
-      const products = data.collection.products.edges.map(({ node }: any) => node);
-      
+      const products = data.collection.products.edges.map(
+        ({ node }: any) => node
+      );
+
       // Extract unique tags
       const tags = new Set<string>();
       products.forEach((product: any) => {
@@ -87,15 +91,17 @@ const CategoryPage: React.FC = () => {
       // Filter products based on selected filters
       const filtered = products.filter((product: any) => {
         const price = parseFloat(product.priceRange.minVariantPrice.amount);
-        
-        const matchesPrice = selectedPriceRanges.length === 0 || selectedPriceRanges.some(range => {
-          const [min, max] = range.split('-').map(parseFloat);
-          return price >= min && price <= max;
-        });
 
-        const matchesTags = selectedTags.length === 0 || selectedTags.some(tag => 
-          product.tags.includes(tag)
-        );
+        const matchesPrice =
+          selectedPriceRanges.length === 0 ||
+          selectedPriceRanges.some((range) => {
+            const [min, max] = range.split('-').map(parseFloat);
+            return price >= min && price <= max;
+          });
+
+        const matchesTags =
+          selectedTags.length === 0 ||
+          selectedTags.some((tag) => product.tags.includes(tag));
 
         return matchesPrice && matchesTags;
       });
@@ -106,15 +112,15 @@ const CategoryPage: React.FC = () => {
 
   const handleFilterChange = (type: 'price' | 'tags', value: string) => {
     if (type === 'price') {
-      setSelectedPriceRanges(prev =>
+      setSelectedPriceRanges((prev) =>
         prev.includes(value)
-          ? prev.filter(range => range !== value)
+          ? prev.filter((range) => range !== value)
           : [...prev, value]
       );
     } else {
-      setSelectedTags(prev =>
+      setSelectedTags((prev) =>
         prev.includes(value)
-          ? prev.filter(tag => tag !== value)
+          ? prev.filter((tag) => tag !== value)
           : [...prev, value]
       );
     }
@@ -164,18 +170,16 @@ const CategoryPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
             {collection?.title}
           </h1>
           {collection?.descriptionHtml ? (
-            <div 
-              className="prose prose-blue max-w-3xl text-gray-600"
+            <div
+              className="text-gray-600 max-w-none"
               dangerouslySetInnerHTML={{ __html: collection.descriptionHtml }}
             />
           ) : collection?.description ? (
-            <p className="text-gray-600 max-w-3xl">
-              {collection.description}
-            </p>
+            <p className="text-gray-600">{collection.description}</p>
           ) : null}
         </div>
 
@@ -196,8 +200,8 @@ const CategoryPage: React.FC = () => {
             <div className="mb-6 text-sm text-gray-500">
               {filteredProducts.length} producten gevonden
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredProducts.map((product: any) => (
                 <ProductCard
                   key={product.id}

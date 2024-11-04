@@ -74,17 +74,18 @@ const Navbar: React.FC<NavbarProps> = ({ isMenuOpen, setIsMenuOpen }) => {
                 placeholder="Zoek producten..."
                 className="w-full border rounded-full px-4 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 ease-in-out"
               />
-              {isSearchExpanded ? (
+              {!isSearchExpanded && (
+                <button type="submit" className="absolute right-3 p-2">
+                  <Search size={20} className="text-gray-500 hover:text-gray-800" />
+                </button>
+              )}
+              {isSearchExpanded && window.innerWidth >= 768 && (
                 <button
                   type="button"
                   onClick={toggleSearch}
                   className="absolute right-3 p-2 transition-all duration-200 hover:scale-110"
                 >
                   <X size={20} className="text-gray-500 hover:text-gray-800" />
-                </button>
-              ) : (
-                <button type="submit" className="absolute right-3 p-2">
-                  <Search size={20} className="text-gray-500 hover:text-gray-800" />
                 </button>
               )}
             </form>
