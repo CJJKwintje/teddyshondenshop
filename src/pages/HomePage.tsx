@@ -63,7 +63,7 @@ const HomePage: React.FC = () => {
             <h2 className="text-4xl font-bold text-white mb-4">
               PREMIUM HONDENVOEDING
               <br />
-              BIJ HAPPY DOG
+              BIJ TEDDY'S
             </h2>
             <Link
               to="/categorie/hondenvoeding"
@@ -116,7 +116,7 @@ const HomePage: React.FC = () => {
         </Link>
 
         <Link
-          to="/category/hondenspeelgoed"
+          to="/categorie/hondenspeelgoed"
           className="bg-blue-500 text-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow group"
         >
           <div className="flex flex-col items-center text-center">
