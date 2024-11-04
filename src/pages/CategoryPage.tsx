@@ -1,5 +1,4 @@
-// @ts-nocheck
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from 'urql';
 import { gql } from 'urql';
@@ -13,6 +12,7 @@ const COLLECTION_QUERY = gql`
       id
       title
       description
+      descriptionHtml
       products(first: 50) {
         edges {
           node {
@@ -43,23 +43,15 @@ const COLLECTION_QUERY = gql`
 
 const categoryConfig = {
   hondenvoeding: {
-    title: 'Hondenvoeding',
-    description: 'Premium hondenvoer voor jouw trouwe viervoeter',
-    collectionHandle: 'hondenvoeding',
+    collectionHandle: 'Hondenvoeding',
   },
   hondenspeelgoed: {
-    title: 'Hondenspeelgoed',
-    description: 'Speelgoed voor urenlang speelplezier',
     collectionHandle: 'hondenspeelgoed',
   },
   hondensnacks: {
-    title: 'Hondensnacks',
-    description: 'Gezonde beloningen voor jouw hond',
     collectionHandle: 'hondensnacks',
   },
   hondentraining: {
-    title: 'Hondentraining',
-    description: 'Professioneel trainingsmateriaal',
     collectionHandle: 'hondentraining',
   }
 };
@@ -148,16 +140,43 @@ const CategoryPage: React.FC = () => {
     );
   }
 
+  if (fetching) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+          Er is een fout opgetreden bij het laden van de categorie.
+        </div>
+      </div>
+    );
+  }
+
+  const collection = data?.collection;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {categoryData.title}
+            {collection?.title}
           </h1>
-          <p className="text-gray-600 max-w-3xl">
-            {categoryData.description}
-          </p>
+          {collection?.descriptionHtml ? (
+            <div 
+              className="prose prose-blue max-w-3xl text-gray-600"
+              dangerouslySetInnerHTML={{ __html: collection.descriptionHtml }}
+            />
+          ) : collection?.description ? (
+            <p className="text-gray-600 max-w-3xl">
+              {collection.description}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
@@ -174,45 +193,33 @@ const CategoryPage: React.FC = () => {
           </aside>
 
           <main className="flex-1">
-            {fetching ? (
-              <div className="flex justify-center items-center h-64">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-              </div>
-            ) : error ? (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-                Er is een fout opgetreden bij het laden van de producten.
-              </div>
-            ) : (
-              <>
-                <div className="mb-6 text-sm text-gray-500">
-                  {filteredProducts.length} producten gevonden
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredProducts.map((product: any) => (
-                    <ProductCard
-                      key={product.id}
-                      id={parseInt(product.id.split('/').pop())}
-                      title={product.title}
-                      category={product.productType || categoryData.title}
-                      imageUrl={product.images.edges[0]?.node.originalSrc}
-                      altText={product.images.edges[0]?.node.altText}
-                      price={parseFloat(product.priceRange.minVariantPrice.amount)}
-                    />
-                  ))}
-                </div>
+            <div className="mb-6 text-sm text-gray-500">
+              {filteredProducts.length} producten gevonden
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProducts.map((product: any) => (
+                <ProductCard
+                  key={product.id}
+                  id={parseInt(product.id.split('/').pop())}
+                  title={product.title}
+                  category={product.productType || collection?.title}
+                  imageUrl={product.images.edges[0]?.node.originalSrc}
+                  altText={product.images.edges[0]?.node.altText}
+                  price={parseFloat(product.priceRange.minVariantPrice.amount)}
+                />
+              ))}
+            </div>
 
-                {filteredProducts.length === 0 && (
-                  <div className="text-center py-12">
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Geen producten gevonden
-                    </h3>
-                    <p className="text-gray-500">
-                      Probeer andere filters te gebruiken om producten te vinden.
-                    </p>
-                  </div>
-                )}
-              </>
+            {filteredProducts.length === 0 && (
+              <div className="text-center py-12">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Geen producten gevonden
+                </h3>
+                <p className="text-gray-500">
+                  Probeer andere filters te gebruiken om producten te vinden.
+                </p>
+              </div>
             )}
           </main>
         </div>

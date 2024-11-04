@@ -66,7 +66,7 @@ const HomePage: React.FC = () => {
               BIJ HAPPY DOG
             </h2>
             <Link
-              to="/category/hondenvoeding"
+              to="/categorie/hondenvoeding"
               className="inline-flex bg-white text-gray-900 px-6 py-3 rounded-full font-medium hover:bg-gray-50 transition-colors w-fit"
             >
               Shop nu
@@ -93,7 +93,7 @@ const HomePage: React.FC = () => {
               <li>- GRAAN- EN GLUTENVRIJ</li>
             </ul>
             <Link
-              to="/category/hondenvoeding"
+              to="/categorie/hondenvoeding"
               className="inline-flex bg-white text-gray-900 px-6 py-3 rounded-full font-medium hover:bg-gray-50 transition-colors w-fit"
             >
               Shop nu
@@ -105,7 +105,7 @@ const HomePage: React.FC = () => {
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
         {/* Category Cards */}
         <Link
-          to="/category/hondenvoeding"
+          to="/categorie/hondenvoeding"
           className="bg-amber-500 text-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow group"
         >
           <div className="flex flex-col items-center text-center">
@@ -127,7 +127,7 @@ const HomePage: React.FC = () => {
         </Link>
 
         <Link
-          to="/category/hondensnacks"
+          to="/categorie/hondensnacks"
           className="bg-green-500 text-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow group"
         >
           <div className="flex flex-col items-center text-center">
@@ -138,7 +138,7 @@ const HomePage: React.FC = () => {
         </Link>
 
         <Link
-          to="/category/hondentraining"
+          to="/categorie/hondentraining"
           className="bg-purple-500 text-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow group"
         >
           <div className="flex flex-col items-center text-center">
