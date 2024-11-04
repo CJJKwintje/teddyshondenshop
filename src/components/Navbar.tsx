@@ -1,6 +1,7 @@
-import React from 'react';
-import { ShoppingCart, Menu, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { ShoppingCart, Menu, X, Search } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 
 interface NavbarProps {
@@ -11,7 +12,16 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ isMenuOpen, setIsMenuOpen }) => {
   const { cart } = useCart();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState('');
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      navigate(`/search?query=${encodeURIComponent(searchTerm)}`);
+    }
+  };
 
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50">
@@ -24,17 +34,24 @@ const Navbar: React.FC<NavbarProps> = ({ isMenuOpen, setIsMenuOpen }) => {
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
-            <Link to="/" className="text-xl font-bold text-gray-800">
-              Happy Huisdier
+            <Link to="/" className="flex items-center text-xl font-bold text-gray-800">
+              <img src="/src/assets/logo.png" alt="Happy Huisdier Logo" className="h-12 w-auto mr-2" />
             </Link>
+            Teddy's hondenshop
           </div>
 
-          <div className="hidden md:flex items-center space-x-8">
-            <Link to="#" className="text-gray-600 hover:text-gray-900">Honden</Link>
-            <Link to="#" className="text-gray-600 hover:text-gray-900">Katten</Link>
-            <Link to="#" className="text-gray-600 hover:text-gray-900">Vogels</Link>
-            <Link to="#" className="text-gray-600 hover:text-gray-900">Vissen</Link>
-          </div>
+          <form onSubmit={handleSearch} className="flex items-center relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Zoek producten..."
+              className="border rounded-full px-4 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-96"
+            />
+            <button type="submit" className="absolute right-2">
+              <Search size={20} className="text-gray-500 hover:text-gray-800" />
+            </button>
+          </form>
 
           <Link 
             to="/cart"
@@ -49,18 +66,6 @@ const Navbar: React.FC<NavbarProps> = ({ isMenuOpen, setIsMenuOpen }) => {
           </Link>
         </div>
       </div>
-
-      {/* Mobile menu */}
-      {isMenuOpen && (
-        <div className="md:hidden">
-          <div className="px-2 pt-2 pb-3 space-y-1">
-            <Link to="#" className="block px-3 py-2 text-gray-600 hover:text-gray-900">Honden</Link>
-            <Link to="#" className="block px-3 py-2 text-gray-600 hover:text-gray-900">Katten</Link>
-            <Link to="#" className="block px-3 py-2 text-gray-600 hover:text-gray-900">Vogels</Link>
-            <Link to="#" className="block px-3 py-2 text-gray-600 hover:text-gray-900">Vissen</Link>
-          </div>
-        </div>
-      )}
     </nav>
   );
 };

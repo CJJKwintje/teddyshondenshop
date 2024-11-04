@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { Product, CartItem, CheckoutData } from '../types';
+import { Product, CartItem, CheckoutData } from '../types/types';
 import { createCheckout } from '../services/shopify';
 
 interface CartContextType {

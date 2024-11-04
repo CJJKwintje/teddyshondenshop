@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useQuery } from 'urql';
 import { useCart } from '../context/CartContext';
 import { PRODUCTS_QUERY } from '../services/shopify';
-import { Product } from '../types';
+import { Product } from '../types/types';
 
 const ProductGrid: React.FC = () => {
   const { addToCart } = useCart();
