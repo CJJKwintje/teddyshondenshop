@@ -21,6 +21,17 @@ const COLLECTION_QUERY = gql`
             title
             productType
             tags
+            variants(first: 1) {
+              edges {
+                node {
+                  id
+                  price {
+                    amount
+                    currencyCode
+                  }
+                }
+              }
+            }
             images(first: 1) {
               edges {
                 node {
@@ -215,17 +226,23 @@ const CategoryPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredProducts.map((product: any) => (
-                <ProductCard
-                  key={product.id}
-                  id={parseInt(product.id.split('/').pop())}
-                  title={product.title}
-                  category={product.productType || collection?.title}
-                  imageUrl={product.images.edges[0]?.node.originalSrc}
-                  altText={product.images.edges[0]?.node.altText}
-                  price={parseFloat(product.priceRange.minVariantPrice.amount)}
-                />
-              ))}
+              {filteredProducts.map((product: any) => {
+                const productId = product.id.split('/').pop();
+                const variantId = product.variants.edges[0]?.node?.id;
+                
+                return (
+                  <ProductCard
+                    key={productId}
+                    id={parseInt(productId)}
+                    title={product.title}
+                    category={product.productType || collection?.title}
+                    imageUrl={product.images.edges[0]?.node.originalSrc}
+                    altText={product.images.edges[0]?.node.altText}
+                    price={parseFloat(product.priceRange.minVariantPrice.amount)}
+                    variantId={variantId}
+                  />
+                );
+              })}
             </div>
 
             {filteredProducts.length === 0 && (

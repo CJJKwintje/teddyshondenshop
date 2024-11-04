@@ -58,28 +58,6 @@ export const PRODUCTS_QUERY = `
   }
 `;
 
-export const CREATE_CHECKOUT_MUTATION = `
-  mutation checkoutCreate($lineItems: [CheckoutLineItemInput!]!) {
-    checkoutCreate(input: {
-      lineItems: $lineItems
-    }) {
-      checkout {
-        id
-        webUrl
-        totalPriceV2 {
-          amount
-          currencyCode
-        }
-      }
-      checkoutUserErrors {
-        code
-        field
-        message
-      }
-    }
-  }
-`;
-
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const executeWithRetry = async <T>(
@@ -104,6 +82,28 @@ const executeWithRetry = async <T>(
     return executeWithRetry(operation, retryCount + 1);
   }
 };
+
+export const CREATE_CHECKOUT_MUTATION = `
+  mutation checkoutCreate($lineItems: [CheckoutLineItemInput!]!) {
+    checkoutCreate(input: {
+      lineItems: $lineItems
+    }) {
+      checkout {
+        id
+        webUrl
+        totalPriceV2 {
+          amount
+          currencyCode
+        }
+      }
+      checkoutUserErrors {
+        code
+        field
+        message
+      }
+    }
+  }
+`;
 
 export const createCheckout = async (
   lineItems: { variantId: string; quantity: number }[]

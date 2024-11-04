@@ -15,6 +15,17 @@ const SEARCH_PRODUCTS_QUERY = gql`
           title
           productType
           tags
+          variants(first: 1) {
+            edges {
+              node {
+                id
+                price {
+                  amount
+                  currencyCode
+                }
+              }
+            }
+          }
           images(first: 1) {
             edges {
               node {

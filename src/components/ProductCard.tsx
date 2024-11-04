@@ -10,7 +10,7 @@ interface ProductCardProps {
   imageUrl: string;
   altText: string;
   price: number;
-  variantId?: string; // Make variantId optional
+  variantId?: string;
 }
 
 function ProductImage({ imageUrl, altText, title }: { imageUrl: string; altText: string; title: string }) {
@@ -57,15 +57,22 @@ export default function ProductCard({
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
-    // Use the provided variantId or fallback to a default format
-    const effectiveVariantId = variantId || `${id}`;
+
+    if (!variantId) {
+      console.error('No variant ID available for product:', id);
+      return;
+    }
+
+    // Only stop propagation if we have a valid variantId and are actually adding to cart
+    e.stopPropagation();
+
     addToCart({
       id,
       name: title,
       price,
       image: imageUrl,
       category,
-      variantId: effectiveVariantId
+      variantId: variantId
     });
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 2000);
@@ -99,10 +106,12 @@ export default function ProductCard({
           </span>
           <button
             onClick={handleAddToCart}
-            disabled={isAdded}
+            disabled={isAdded || !variantId}
             className={`flex-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
               isAdded
                 ? 'bg-green-500 text-white'
+                : !variantId
+                ? 'bg-gray-300 cursor-not-allowed'
                 : 'bg-blue-500 hover:bg-blue-600 text-white'
             }`}
           >

@@ -47,18 +47,23 @@ export default function SearchResults({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {products.map((product) => (
-        <ProductCard
-          key={product.id}
-          id={parseInt(product.id.split('/').pop())}
-          title={product.title}
-          category={product.productType || 'General'}
-          imageUrl={product.images.edges[0]?.node.originalSrc}
-          altText={product.images.edges[0]?.node.altText}
-          price={parseFloat(product.priceRange.minVariantPrice.amount)}
-          variantId={product.variants.edges[0]?.node.id}
-        />
-      ))}
+      {products.map((product) => {
+        const productId = product.id.split('/').pop();
+        const variantId = product.variants?.edges[0]?.node?.id;
+        
+        return (
+          <ProductCard
+            key={productId}
+            id={parseInt(productId)}
+            title={product.title}
+            category={product.productType || 'General'}
+            imageUrl={product.images.edges[0]?.node.originalSrc}
+            altText={product.images.edges[0]?.node.altText}
+            price={parseFloat(product.priceRange.minVariantPrice.amount)}
+            variantId={variantId}
+          />
+        );
+      })}
     </div>
   );
 }
