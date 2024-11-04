@@ -78,25 +78,52 @@ export const CREATE_CHECKOUT_MUTATION = `
 export const createCheckout = async (
   lineItems: { variantId: string; quantity: number }[]
 ) => {
-  // Ensure variant IDs are in the correct format
-  const formattedLineItems = lineItems.map(item => ({
-    ...item,
-    variantId: item.variantId
-  }));
+  try {
+    // Validate input
+    if (!Array.isArray(lineItems) || lineItems.length === 0) {
+      throw new Error('Invalid line items provided');
+    }
 
-  const result = await shopifyClient
-    .mutation(CREATE_CHECKOUT_MUTATION, {
-      lineItems: formattedLineItems,
-    })
-    .toPromise();
+    // Ensure variant IDs are in the correct format
+    const formattedLineItems = lineItems.map(item => {
+      if (!item.variantId || !item.quantity) {
+        throw new Error('Invalid line item: missing required fields');
+      }
+      
+      return {
+        variantId: item.variantId,
+        quantity: Math.max(1, Math.floor(item.quantity)) // Ensure quantity is a positive integer
+      };
+    });
 
-  if (result.error) {
-    throw new Error(result.error.message);
+    const result = await shopifyClient
+      .mutation(CREATE_CHECKOUT_MUTATION, {
+        lineItems: formattedLineItems,
+      })
+      .toPromise();
+
+    if (!result.data && result.error) {
+      console.error('Shopify API Error:', result.error);
+      throw new Error('Failed to create checkout: Network error');
+    }
+
+    if (result.data?.checkoutCreate?.checkoutUserErrors?.length > 0) {
+      const error = result.data.checkoutCreate.checkoutUserErrors[0];
+      console.error('Checkout Error:', error);
+      throw new Error(`Checkout error: ${error.message}`);
+    }
+
+    if (!result.data?.checkoutCreate?.checkout) {
+      throw new Error('No checkout data received');
+    }
+
+    return result.data.checkoutCreate.checkout;
+  } catch (error) {
+    console.error('Checkout creation error:', error);
+    throw new Error(
+      error instanceof Error 
+        ? error.message 
+        : 'An unexpected error occurred during checkout'
+    );
   }
-
-  if (result.data?.checkoutCreate?.checkoutUserErrors?.length > 0) {
-    throw new Error(result.data.checkoutCreate.checkoutUserErrors[0].message);
-  }
-
-  return result.data.checkoutCreate.checkout;
 };

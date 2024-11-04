@@ -1,23 +1,35 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
-import { Trash2, MinusCircle, PlusCircle, ArrowLeft } from 'lucide-react';
+import { Trash2, MinusCircle, PlusCircle, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const CartPage: React.FC = () => {
-  const { cart, removeFromCart, updateQuantity, createShopifyCheckout } = useCart();
+  const { cart, removeFromCart, updateQuantity, createShopifyCheckout } =
+    useCart();
   const [isLoading, setIsLoading] = useState(false);
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const [error, setError] = useState<string | null>(null);
+  
+  const subtotal = cart.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
   const shippingCost = subtotal >= 50 ? 0 : 4.95;
   const total = subtotal + shippingCost;
 
   const handleCheckout = async () => {
     setIsLoading(true);
+    setError(null);
+    
     try {
       const checkout = await createShopifyCheckout();
       window.location.href = checkout.webUrl;
     } catch (error) {
       console.error('Checkout error:', error);
-      alert('Er is een fout opgetreden bij het afrekenen. Probeer het opnieuw.');
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Er is een fout opgetreden bij het afrekenen. Probeer het opnieuw.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -27,7 +39,9 @@ const CartPage: React.FC = () => {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <h1 className="text-2xl font-bold mb-8">Je winkelwagen is leeg</h1>
-        <p className="text-gray-600 mb-8">Ontdek onze producten en voeg ze toe aan je winkelwagen.</p>
+        <p className="text-gray-600 mb-8">
+          Ontdek onze producten en voeg ze toe aan je winkelwagen.
+        </p>
         <Link
           to="/"
           className="inline-flex items-center text-blue-500 hover:text-blue-600"
@@ -42,7 +56,10 @@ const CartPage: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center mb-8">
-        <Link to="/" className="text-blue-500 hover:text-blue-600 flex items-center">
+        <Link
+          to="/"
+          className="text-blue-500 hover:text-blue-600 flex items-center"
+        >
           <ArrowLeft className="mr-2" size={20} />
           Verder winkelen
         </Link>
@@ -69,8 +86,11 @@ const CartPage: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                    onClick={() =>
+                      updateQuantity(item.id, Math.max(1, item.quantity - 1))
+                    }
                     className="text-gray-500 hover:text-gray-700"
+                    aria-label="Decrease quantity"
                   >
                     <MinusCircle size={20} />
                   </button>
@@ -78,12 +98,14 @@ const CartPage: React.FC = () => {
                   <button
                     onClick={() => updateQuantity(item.id, item.quantity + 1)}
                     className="text-gray-500 hover:text-gray-700"
+                    aria-label="Increase quantity"
                   >
                     <PlusCircle size={20} />
                   </button>
                   <button
                     onClick={() => removeFromCart(item.id)}
                     className="ml-4 text-red-500 hover:text-red-600"
+                    aria-label="Remove item"
                   >
                     <Trash2 size={20} />
                   </button>
@@ -103,7 +125,11 @@ const CartPage: React.FC = () => {
               </div>
               <div className="flex justify-between">
                 <span>Verzendkosten</span>
-                <span>{shippingCost === 0 ? 'Gratis' : `€${shippingCost.toFixed(2)}`}</span>
+                <span>
+                  {shippingCost === 0
+                    ? 'Gratis'
+                    : `€${shippingCost.toFixed(2)}`}
+                </span>
               </div>
               {shippingCost > 0 && (
                 <p className="text-sm text-gray-600">
@@ -117,11 +143,21 @@ const CartPage: React.FC = () => {
                 </div>
               </div>
             </div>
-            <button 
+            
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
+            
+            <button
               onClick={handleCheckout}
               disabled={isLoading}
               className={`w-full bg-blue-500 text-white py-3 rounded-lg transition-colors ${
-                isLoading ? 'opacity-75 cursor-not-allowed' : 'hover:bg-blue-600'
+                isLoading
+                  ? 'opacity-75 cursor-not-allowed'
+                  : 'hover:bg-blue-600'
               }`}
             >
               {isLoading ? 'Bezig met laden...' : 'Afrekenen'}

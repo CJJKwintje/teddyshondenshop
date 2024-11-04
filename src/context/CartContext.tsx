@@ -38,6 +38,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const updateQuantity = (productId: number, quantity: number) => {
+    if (quantity < 1) return; // Prevent negative quantities
     setCart((currentCart) =>
       currentCart.map((item) =>
         item.id === productId ? { ...item, quantity } : item
@@ -46,20 +47,33 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const createShopifyCheckout = async () => {
-    const lineItems = cart.map((item) => ({
-      variantId: item.variantId,
-      quantity: item.quantity,
-    }));
-
     try {
+      if (cart.length === 0) {
+        throw new Error('Cart is empty');
+      }
+
+      const lineItems = cart.map((item) => ({
+        variantId: item.variantId,
+        quantity: item.quantity,
+      }));
+
       const checkout = await createCheckout(lineItems);
+      
+      if (!checkout.webUrl) {
+        throw new Error('Invalid checkout URL received');
+      }
+
       return {
         webUrl: checkout.webUrl,
         id: checkout.id,
       };
     } catch (error) {
       console.error('Error creating checkout:', error);
-      throw error;
+      throw new Error(
+        error instanceof Error
+          ? error.message
+          : 'Er is een fout opgetreden bij het afrekenen. Probeer het opnieuw.'
+      );
     }
   };
 
