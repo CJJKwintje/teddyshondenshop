@@ -10,6 +10,7 @@ interface ProductCardProps {
   imageUrl: string;
   altText: string;
   price: number;
+  variantId?: string; // Make variantId optional
 }
 
 function ProductImage({ imageUrl, altText, title }: { imageUrl: string; altText: string; title: string }) {
@@ -48,20 +49,23 @@ export default function ProductCard({
   category, 
   imageUrl, 
   altText, 
-  price 
+  price,
+  variantId 
 }: ProductCardProps) {
   const { addToCart } = useCart();
   const [isAdded, setIsAdded] = React.useState(false);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
+    // Use the provided variantId or fallback to a default format
+    const effectiveVariantId = variantId || `${id}`;
     addToCart({
       id,
       name: title,
       price,
       image: imageUrl,
       category,
-      variantId: id
+      variantId: effectiveVariantId
     });
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 2000);

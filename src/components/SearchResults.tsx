@@ -38,7 +38,8 @@ export default function SearchResults({
           Geen producten gevonden voor "{searchQuery}"
         </h3>
         <p className="text-gray-500">
-          Probeer een ander zoekwoord of pas de filters aan om te vinden wat je zoekt.
+          Probeer een ander zoekwoord of pas de filters aan om te vinden wat je
+          zoekt.
         </p>
       </div>
     );
@@ -55,6 +56,7 @@ export default function SearchResults({
           imageUrl={product.images.edges[0]?.node.originalSrc}
           altText={product.images.edges[0]?.node.altText}
           price={parseFloat(product.priceRange.minVariantPrice.amount)}
+          variantId={product.variants.edges[0]?.node.id}
         />
       ))}
     </div>
