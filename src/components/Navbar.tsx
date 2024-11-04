@@ -3,6 +3,7 @@ import { ShoppingCart, Menu, X, Search } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import logo from '../assets/logo.png';
 
 interface NavbarProps {
   isMenuOpen: boolean;
@@ -35,7 +36,7 @@ const Navbar: React.FC<NavbarProps> = ({ isMenuOpen, setIsMenuOpen }) => {
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
             <Link to="/" className="flex items-center text-xl font-bold text-gray-800">
-              <img src="/assets/logo.png" alt="Happy Huisdier Logo" className="h-12 w-auto mr-2" />
+              <img src={logo} alt="Happy Huisdier Logo" className="h-12 w-auto mr-2" />
             </Link>
             Teddy's hondenshop
           </div>
