@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
-import { Trash2, MinusCircle, PlusCircle, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Trash2, MinusCircle, PlusCircle, ArrowLeft, AlertCircle, Wifi, RefreshCcw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const CartPage: React.FC = () => {
@@ -8,6 +8,7 @@ const CartPage: React.FC = () => {
     useCart();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
   
   const subtotal = cart.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -16,7 +17,10 @@ const CartPage: React.FC = () => {
   const shippingCost = subtotal >= 50 ? 0 : 4.95;
   const total = subtotal + shippingCost;
 
-  const handleCheckout = async () => {
+  const handleCheckout = async (retry = false) => {
+    if (retry) {
+      setRetrying(true);
+    }
     setIsLoading(true);
     setError(null);
     
@@ -32,6 +36,7 @@ const CartPage: React.FC = () => {
       );
     } finally {
       setIsLoading(false);
+      setRetrying(false);
     }
   };
 
@@ -145,14 +150,32 @@ const CartPage: React.FC = () => {
             </div>
             
             {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-700">{error}</p>
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  {error.includes('internetverbinding') ? (
+                    <Wifi className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1">
+                    <p className="text-sm text-red-700">{error}</p>
+                    {error.includes('internetverbinding') && (
+                      <button
+                        onClick={() => handleCheckout(true)}
+                        disabled={retrying}
+                        className="mt-2 text-sm text-red-700 hover:text-red-800 font-medium inline-flex items-center gap-1"
+                      >
+                        <RefreshCcw size={14} className={retrying ? 'animate-spin' : ''} />
+                        {retrying ? 'Opnieuw proberen...' : 'Opnieuw proberen'}
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
             
             <button
-              onClick={handleCheckout}
+              onClick={() => handleCheckout(false)}
               disabled={isLoading}
               className={`w-full bg-blue-500 text-white py-3 rounded-lg transition-colors ${
                 isLoading
