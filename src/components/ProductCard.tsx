@@ -102,7 +102,7 @@ export default function ProductCard({
         
         <div className="flex items-center justify-between gap-4">
           <span className="text-lg font-bold text-gray-900">
-            €{price.toFixed(2)}
+          €{price.toFixed(2).replace('.', ',')}
           </span>
           <button
             onClick={handleAddToCart}

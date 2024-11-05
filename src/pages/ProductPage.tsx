@@ -299,7 +299,7 @@ export default function ProductPage() {
                   <div className="space-y-1">
                     <p className="text-sm text-gray-500">Prijs</p>
                     <p className="text-3xl font-bold text-gray-900">
-                      €{price.toFixed(2)}
+                    €{price.toFixed(2).replace('.', ',')}
                     </p>
                   </div>
                   <button

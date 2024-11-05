@@ -34,9 +34,7 @@ function App() {
                   <Route path="/search" element={<SearchPage />} />
                   <Route path="/product/:id" element={<ProductPage />} />
                   <Route path="/categorie/:category" element={<CategoryPage />} />
-                  <Route path="/content/:slug" element={<ContentPage />} />
-                  <Route path="/over-ons" element={<ContentPage />} />
-                  <Route path="/algemene-voorwaarden" element={<ContentPage />} />
+                  <Route path="/:slug" element={<ContentPage />} />
                 </Routes>
 
                 <CartPreview />
@@ -63,8 +61,8 @@ function App() {
                       <div>
                         <h3 className="text-xl font-semibold mb-4">Links</h3>
                         <div className="flex flex-col space-y-2">
-                          <a href="/over-ons" className="text-gray-400 hover:text-white">
-                            Over ons
+                          <a href="/privacybeleid" className="text-gray-400 hover:text-white">
+                            Privacybeleid
                           </a>
                           <a href="/algemene-voorwaarden" className="text-gray-400 hover:text-white">
                             Algemene voorwaarden
