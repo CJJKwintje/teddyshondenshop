@@ -49,12 +49,12 @@ const Navbar: React.FC<NavbarProps> = ({ isMenuOpen, setIsMenuOpen }) => {
           }`}>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2"
+              className="md:hidden p-2 hidden"
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
             <Link to="/" className="flex items-center text-xl font-bold text-gray-800">
-              <img src={logo} alt="Happy Huisdier Logo" className="h-12 w-auto mr-2" />
+              <img src={logo} alt="Teddy's hondenshop Logo" className="h-12 w-auto mr-2" />
               <span className="hidden md:inline">Teddy's hondenshop</span>
             </Link>
           </div>
