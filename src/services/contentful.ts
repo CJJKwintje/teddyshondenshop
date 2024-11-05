@@ -1,8 +1,17 @@
 import { createClient } from 'contentful';
 
+const SPACE_ID = import.meta.env.VITE_CONTENTFUL_SPACE_ID;
+const ACCESS_TOKEN = import.meta.env.VITE_CONTENTFUL_ACCESS_TOKEN;
+
+if (!SPACE_ID || !ACCESS_TOKEN) {
+  throw new Error(
+    'Missing required environment variables: VITE_CONTENTFUL_SPACE_ID and/or VITE_CONTENTFUL_ACCESS_TOKEN'
+  );
+}
+
 export const contentfulClient = createClient({
-  space: '7pu3fo2876dy',
-  accessToken: 'MmRJZUgHdT4fC37Y8R-HTKzodMs2iFP_-BA9y15aAXw',
+  space: SPACE_ID,
+  accessToken: ACCESS_TOKEN,
 });
 
 export interface ContentfulPage {
