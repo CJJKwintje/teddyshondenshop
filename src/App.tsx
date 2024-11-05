@@ -11,6 +11,7 @@ import ProductPage from './pages/ProductPage';
 import CategoryPage from './pages/CategoryPage';
 import ContentPage from './pages/ContentPage';
 import CartPreview from './components/CartPreview';
+import ScrollToTop from './components/ScrollToTop';
 
 function App() {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -19,9 +20,10 @@ function App() {
     <UrqlProvider value={shopifyClient}>
       <BrowserRouter>
         <CartProvider>
+          <ScrollToTop />
           <div className="min-h-screen bg-gray-50">
             <Navbar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
-            
+
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/cart" element={<CartPage />} />
@@ -37,19 +39,30 @@ function App() {
               <div className="container mx-auto px-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   <div>
-                    <h3 className="text-xl font-semibold mb-4">Teddy's hondenshop</h3>
-                    <p className="text-gray-400">De beste producten voor jouw hond, direct bij jou thuisbezorgd.</p>
+                    <h3 className="text-xl font-semibold mb-4">
+                      Teddy's hondenshop
+                    </h3>
+                    <p className="text-gray-400">
+                      De beste producten voor jouw hond, direct bij jou
+                      thuisbezorgd.
+                    </p>
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold mb-4">Contact</h3>
-                    <p className="text-gray-400">Email: info@teddyshondenshop.nl</p>
+                    <p className="text-gray-400">
+                      Email: info@teddyshondenshop.nl
+                    </p>
                     <p className="text-gray-400">Tel: +31 (0)6 411 32 964</p>
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold mb-4">Volg ons</h3>
                     <div className="flex space-x-4">
-                      <a href="#" className="text-gray-400 hover:text-white">Instagram</a>
-                      <a href="#" className="text-gray-400 hover:text-white">Facebook</a>
+                      <a href="#" className="text-gray-400 hover:text-white">
+                        Instagram
+                      </a>
+                      <a href="#" className="text-gray-400 hover:text-white">
+                        Facebook
+                      </a>
                     </div>
                   </div>
                 </div>
