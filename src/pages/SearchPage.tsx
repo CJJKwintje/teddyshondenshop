@@ -5,6 +5,7 @@ import { gql } from 'urql';
 import { Search } from 'lucide-react';
 import SearchFilters from '../components/SearchFilters';
 import SearchResults from '../components/SearchResults';
+import SEO from '../components/SEO';
 
 const SEARCH_PRODUCTS_QUERY = gql`
   query SearchProducts($query: String!) {
@@ -54,6 +55,7 @@ export default function SearchPage() {
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
 
   const buildQuery = useCallback(() => {
     return `title:*${searchQuery}* OR tag:*${searchQuery}*`;
@@ -66,25 +68,48 @@ export default function SearchPage() {
 
   useEffect(() => {
     if (result.data) {
+      const products = result.data.products.edges.map(({ node }: any) => node);
+      
+      // Extract unique tags
       const tags = new Set<string>();
-      result.data.products.edges.forEach(({ node }: any) => {
-        node.tags.forEach((tag: string) => tags.add(tag));
+      products.forEach((product: any) => {
+        product.tags.forEach((tag: string) => tags.add(tag));
       });
       setAvailableTags(Array.from(tags));
+
+      // Filter products based on selected filters
+      const filtered = products.filter((product: any) => {
+        const price = parseFloat(product.priceRange.minVariantPrice.amount);
+
+        const matchesPrice =
+          selectedPriceRanges.length === 0 ||
+          selectedPriceRanges.some((range) => {
+            const [min, max] = range.split('-').map(parseFloat);
+            return price >= min && price <= max;
+          });
+
+        const matchesTags =
+          selectedTags.length === 0 ||
+          selectedTags.some((tag) => product.tags.includes(tag));
+
+        return matchesPrice && matchesTags;
+      });
+
+      setFilteredProducts(filtered);
     }
-  }, [result.data]);
+  }, [result.data, selectedPriceRanges, selectedTags]);
 
   const handleFilterChange = (type: 'price' | 'tags', value: string) => {
     if (type === 'price') {
-      setSelectedPriceRanges(prev =>
+      setSelectedPriceRanges((prev) =>
         prev.includes(value)
-          ? prev.filter(range => range !== value)
+          ? prev.filter((range) => range !== value)
           : [...prev, value]
       );
     } else {
-      setSelectedTags(prev =>
+      setSelectedTags((prev) =>
         prev.includes(value)
-          ? prev.filter(tag => tag !== value)
+          ? prev.filter((tag) => tag !== value)
           : [...prev, value]
       );
     }
@@ -95,29 +120,34 @@ export default function SearchPage() {
     setSelectedTags([]);
   };
 
-  const filterProducts = (products: any[]) => {
-    return products.filter(product => {
-      const price = parseFloat(product.priceRange.minVariantPrice.amount);
-      
-      const matchesPrice = selectedPriceRanges.length === 0 || selectedPriceRanges.some(range => {
-        const [min, max] = range.split('-').map(parseFloat);
-        return price >= min && price <= max;
-      });
-
-      const matchesTags = selectedTags.length === 0 || selectedTags.some(tag => 
-        product.tags.includes(tag)
-      );
-
-      return matchesPrice && matchesTags;
-    });
+  const canonicalUrl = `https://teddyshondenshop.nl/search?query=${encodeURIComponent(searchQuery)}`;
+  
+  const getMetaDescription = () => {
+    if (result.fetching) {
+      return 'Zoeken naar producten...';
+    }
+    
+    if (result.error) {
+      return 'Er is een fout opgetreden bij het zoeken.';
+    }
+    
+    if (filteredProducts.length === 0) {
+      return `Geen producten gevonden voor "${searchQuery}". Probeer een andere zoekterm.`;
+    }
+    
+    return `${filteredProducts.length} producten gevonden voor "${searchQuery}". Bekijk ons assortiment en bestel direct.`;
   };
-
-  const filteredProducts = result.data
-    ? filterProducts(result.data.products.edges.map(({ node }: any) => node))
-    : [];
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <SEO
+        title={`Zoekresultaten voor "${searchQuery}"`}
+        description={getMetaDescription()}
+        canonical={canonicalUrl}
+        type="website"
+        noindex={true}
+      />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center gap-2 mb-8">
           <Search className="w-6 h-6 text-gray-400" />

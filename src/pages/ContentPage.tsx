@@ -1,19 +1,31 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { getPageBySlug } from '../data/mockContent';
 import Hero from '../components/content/Hero';
 import ContentTextBlock from '../components/content/TextBlock';
 import Quote from '../components/content/Quote';
 import CallToAction from '../components/content/CallToAction';
+import SEO from '../components/SEO';
 import { ContentBlock } from '../types/content';
 
 export default function ContentPage() {
   const { slug } = useParams<{ slug: string }>();
-  const page = getPageBySlug(slug || '');
+  const location = useLocation();
+  
+  // Extract slug from pathname for direct routes
+  const pathSlug = location.pathname.substring(1); // Remove leading slash
+  const pageSlug = slug || pathSlug;
+  
+  const page = getPageBySlug(pageSlug);
 
   if (!page) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <SEO 
+          title="Pagina niet gevonden"
+          description="De opgevraagde pagina bestaat niet of is verwijderd."
+          noindex={true}
+        />
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Pagina niet gevonden
@@ -41,17 +53,20 @@ export default function ContentPage() {
     }
   };
 
+  const canonicalUrl = `https://teddyshondenshop.nl${location.pathname}`;
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* SEO */}
-      <title>{page.seo.title}</title>
-      <meta name="description" content={page.seo.description} />
-      {page.seo.image && <meta property="og:image" content={page.seo.image} />}
+      <SEO 
+        title={page.seo.title}
+        description={page.seo.description}
+        canonical={canonicalUrl}
+        type="article"
+        image={page.seo.image}
+      />
 
       {/* Content Blocks */}
-      <div className="flex flex-col">
-        {page.blocks.map(renderBlock)}
-      </div>
+      <div className="flex flex-col">{page.blocks.map(renderBlock)}</div>
     </div>
   );
 }

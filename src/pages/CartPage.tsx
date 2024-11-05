@@ -2,18 +2,15 @@ import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { Trash2, MinusCircle, PlusCircle, ArrowLeft, AlertCircle, Wifi, RefreshCcw } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import SEO from '../components/SEO';
 
 const CartPage: React.FC = () => {
-  const { cart, removeFromCart, updateQuantity, createShopifyCheckout } =
-    useCart();
+  const { cart, removeFromCart, updateQuantity, createShopifyCheckout } = useCart();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
   
-  const subtotal = cart.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingCost = subtotal >= 50 ? 0 : 4.95;
   const total = subtotal + shippingCost;
 
@@ -40,9 +37,22 @@ const CartPage: React.FC = () => {
     }
   };
 
+  const getMetaDescription = () => {
+    if (cart.length === 0) {
+      return 'Je winkelwagen is leeg. Ontdek ons assortiment hondenproducten en voeg items toe aan je winkelwagen.';
+    }
+    return `Je winkelwagen bevat ${cart.length} ${cart.length === 1 ? 'product' : 'producten'}. Ga verder met afrekenen of shop verder in onze webshop.`;
+  };
+
   if (cart.length === 0) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
+        <SEO
+          title="Winkelwagen"
+          description={getMetaDescription()}
+          canonical="https://teddyshondenshop.nl/cart"
+          noindex={true}
+        />
         <h1 className="text-2xl font-bold mb-8">Je winkelwagen is leeg</h1>
         <p className="text-gray-600 mb-8">
           Ontdek onze producten en voeg ze toe aan je winkelwagen.
@@ -60,6 +70,13 @@ const CartPage: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <SEO
+        title="Winkelwagen"
+        description={getMetaDescription()}
+        canonical="https://teddyshondenshop.nl/cart"
+        noindex={true}
+      />
+      
       <div className="flex items-center mb-8">
         <Link
           to="/"

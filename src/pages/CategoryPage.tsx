@@ -6,6 +6,7 @@ import { Loader2, ArrowLeft, SlidersHorizontal } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import SearchFilters from '../components/SearchFilters';
 import MobileFilterMenu from '../components/MobileFilterMenu';
+import SEO from '../components/SEO';
 
 const COLLECTION_QUERY = gql`
   query GetCollection($handle: String!) {
@@ -148,6 +149,11 @@ const CategoryPage: React.FC = () => {
   if (!categoryData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <SEO
+          title="Categorie niet gevonden"
+          description="De opgevraagde categorie bestaat niet."
+          noindex={true}
+        />
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Categorie niet gevonden
@@ -163,6 +169,11 @@ const CategoryPage: React.FC = () => {
   if (fetching) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <SEO
+          title="Categorie laden..."
+          description="Even geduld alstublieft terwijl we de producten laden."
+          noindex={true}
+        />
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
     );
@@ -171,6 +182,11 @@ const CategoryPage: React.FC = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <SEO
+          title="Fout bij laden categorie"
+          description="Er is een fout opgetreden bij het laden van de categorie."
+          noindex={true}
+        />
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
           Er is een fout opgetreden bij het laden van de categorie.
         </div>
@@ -179,9 +195,25 @@ const CategoryPage: React.FC = () => {
   }
 
   const collection = data?.collection;
+  const canonicalUrl = `https://teddyshondenshop.nl/categorie/${category}`;
+  const categoryTitle = collection?.title || categoryData.collectionHandle;
+  
+  const categoryDescription = collection?.description || 
+    `Ontdek ons uitgebreide assortiment ${categoryTitle.toLowerCase()}. ` +
+    `De beste kwaliteit voor jouw hond, direct bij jou thuisbezorgd. ` +
+    `${filteredProducts.length} producten beschikbaar.`;
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <SEO
+        title={`${categoryTitle} voor honden`}
+        description={categoryDescription}
+        canonical={canonicalUrl}
+        type="website"
+        image={filteredProducts[0]?.images?.edges[0]?.node?.originalSrc}
+        imageAlt={`${categoryTitle} collectie bij Teddy's Hondenshop`}
+      />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button
           onClick={() => navigate(-1)}

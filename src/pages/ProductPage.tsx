@@ -13,6 +13,7 @@ import {
   ImageOff,
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import SEO from '../components/SEO';
 
 const PRODUCT_QUERY = gql`
   query GetProduct($id: ID!) {
@@ -113,6 +114,11 @@ export default function ProductPage() {
   if (fetching) {
     return (
       <div className="min-h-screen flex items-center justify-center">
+        <SEO
+          title="Product laden..."
+          description="Even geduld alstublieft terwijl we het product laden."
+          noindex={true}
+        />
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
     );
@@ -121,6 +127,11 @@ export default function ProductPage() {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
+        <SEO
+          title="Fout bij laden product"
+          description="Er is een fout opgetreden bij het laden van het product."
+          noindex={true}
+        />
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 max-w-md text-center">
           <p className="font-medium mb-2">Error Loading Product</p>
           <p className="text-sm">{error.message}</p>
@@ -132,6 +143,11 @@ export default function ProductPage() {
   if (!data?.product) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
+        <SEO
+          title="Product niet gevonden"
+          description="Het opgevraagde product bestaat niet of is verwijderd."
+          noindex={true}
+        />
         <div className="text-center max-w-md">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
             Product Not Found
@@ -155,6 +171,7 @@ export default function ProductPage() {
   const images = product.images.edges.map(({ node }: any) => node);
   const price = parseFloat(product.priceRange.minVariantPrice.amount);
   const variantId = product.variants.edges[0]?.node.id;
+  const canonicalUrl = `https://teddyshondenshop.nl/product/${id}`;
 
   const handleAddToCart = () => {
     addToCart({
@@ -171,6 +188,15 @@ export default function ProductPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <SEO
+        title={product.title}
+        description={product.description || `Koop ${product.title} bij Teddy's Hondenshop`}
+        canonical={canonicalUrl}
+        type="product"
+        image={images[0]?.originalSrc}
+        imageAlt={images[0]?.altText || product.title}
+      />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <button
           onClick={() => navigate(-1)}

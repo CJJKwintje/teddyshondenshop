@@ -4,6 +4,7 @@ import { gql } from 'urql';
 import { Bone, Cookie, Dog, Dumbbell, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
+import SEO from '../components/SEO';
 
 const PRODUCTS_QUERY = gql`
   query GetProducts {
@@ -59,6 +60,16 @@ const HomePage: React.FC = () => {
 
   return (
     <main className="container mx-auto px-4 py-8">
+      <SEO
+        title="Teddy's Hondenshop"
+        description="De beste producten voor jouw hond, direct bij jou thuisbezorgd. Ontdek ons uitgebreide assortiment van voeding, snacks, speeltjes en training"
+        canonical="https://teddyshondenshop.nl"
+        type="website"
+        image="https://teddyshondenshop.nl/og-image.jpg"
+        imageAlt="Teddy's Hondenshop - Premium hondenproducten"
+      />
+
+      {/* Rest of the HomePage component remains the same */}
       <section className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-12">
         {/* Main Banner */}
         <div
