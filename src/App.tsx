@@ -56,7 +56,6 @@ function App() {
                         <p className="text-gray-400">
                           Email: info@teddyshondenshop.nl
                         </p>
-                        <p className="text-gray-400">Tel: +31 (0)6 411 32 964</p>
                       </div>
                       <div>
                         <h3 className="text-xl font-semibold mb-4">Links</h3>

@@ -2,9 +2,10 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useQuery } from 'urql';
 import { gql } from 'urql';
-import { Search } from 'lucide-react';
+import { Search, SlidersHorizontal } from 'lucide-react';
 import SearchFilters from '../components/SearchFilters';
 import SearchResults from '../components/SearchResults';
+import MobileFilterMenu from '../components/MobileFilterMenu';
 import SEO from '../components/SEO';
 
 const SEARCH_PRODUCTS_QUERY = gql`
@@ -52,6 +53,7 @@ export default function SearchPage() {
   const params = new URLSearchParams(location.search);
   const searchQuery = params.get('query') || '';
   
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
@@ -157,21 +159,31 @@ export default function SearchPage() {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
-          <aside className="lg:w-72 flex-shrink-0">
-            <div className="sticky top-8">
-              <SearchFilters
-                availableTags={availableTags}
-                selectedTags={selectedTags}
-                selectedPriceRanges={selectedPriceRanges}
-                onFilterChange={handleFilterChange}
-                onClearFilters={clearFilters}
-              />
-            </div>
+          {/* Desktop Filters */}
+          <aside className="hidden lg:block lg:w-72 flex-shrink-0">
+            <SearchFilters
+              availableTags={availableTags}
+              selectedTags={selectedTags}
+              selectedPriceRanges={selectedPriceRanges}
+              onFilterChange={handleFilterChange}
+              onClearFilters={clearFilters}
+            />
           </aside>
 
           <main className="flex-1">
-            <div className="mb-4 text-sm text-gray-500">
-              {filteredProducts.length} producten gevonden
+            <div className="flex items-center justify-between mb-6">
+              <div className="text-sm text-gray-500">
+                {filteredProducts.length} producten gevonden
+              </div>
+              
+              {/* Mobile Filter Button */}
+              <button
+                onClick={() => setIsFilterMenuOpen(true)}
+                className="lg:hidden inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                Filters
+              </button>
             </div>
             
             <SearchResults
@@ -183,6 +195,17 @@ export default function SearchPage() {
           </main>
         </div>
       </div>
+
+      {/* Mobile Filter Menu */}
+      <MobileFilterMenu
+        isOpen={isFilterMenuOpen}
+        onClose={() => setIsFilterMenuOpen(false)}
+        availableTags={availableTags}
+        selectedTags={selectedTags}
+        selectedPriceRanges={selectedPriceRanges}
+        onFilterChange={handleFilterChange}
+        onClearFilters={clearFilters}
+      />
     </div>
   );
 }
