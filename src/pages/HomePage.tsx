@@ -199,11 +199,12 @@ const HomePage: React.FC = () => {
             Teddy's favorieten
           </h2>
           <Link
-            to="/products"
+            to="/producten"
             className="text-blue-500 hover:text-blue-600 font-medium text-sm md:text-base"
           >
             Bekijk alles →
           </Link>
+
         </div>
 
         {fetching ? (

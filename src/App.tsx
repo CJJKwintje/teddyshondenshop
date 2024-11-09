@@ -12,6 +12,7 @@ import SearchPage from './pages/SearchPage';
 import ProductPage from './pages/ProductPage';
 import CategoryPage from './pages/CategoryPage';
 import ContentPage from './pages/ContentPage';
+import ProductsPage from './pages/ProductsPage';
 import CartPreview from './components/CartPreview';
 import ScrollToTop from './components/ScrollToTop';
 
@@ -32,6 +33,7 @@ function App() {
                   <Route path="/" element={<HomePage />} />
                   <Route path="/cart" element={<CartPage />} />
                   <Route path="/search" element={<SearchPage />} />
+                  <Route path="/producten" element={<ProductsPage />} />
                   <Route path="/product/:id" element={<ProductPage />} />
                   <Route path="/categorie/:category" element={<CategoryPage />} />
                   <Route path="/:slug" element={<ContentPage />} />
@@ -56,12 +58,13 @@ function App() {
                         <p className="text-gray-400">
                           Email: info@teddyshondenshop.nl
                         </p>
+                        <p className="text-gray-400">Tel: +31 (0)6 411 32 964</p>
                       </div>
                       <div>
                         <h3 className="text-xl font-semibold mb-4">Links</h3>
                         <div className="flex flex-col space-y-2">
-                          <a href="/privacybeleid" className="text-gray-400 hover:text-white">
-                            Privacybeleid
+                          <a href="/over-ons" className="text-gray-400 hover:text-white">
+                            Over ons
                           </a>
                           <a href="/algemene-voorwaarden" className="text-gray-400 hover:text-white">
                             Algemene voorwaarden
