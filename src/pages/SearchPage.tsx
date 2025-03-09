@@ -8,12 +8,16 @@ import SearchResults from '../components/SearchResults';
 import MobileFilterMenu from '../components/MobileFilterMenu';
 import BackToTop from '../components/BackToTop';
 import SEO from '../components/SEO';
-import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { formatPrice } from '../utils/formatPrice';
+import Pagination from '../components/Pagination';
 
 const SEARCH_PRODUCTS_QUERY = gql`
-  query SearchProducts($query: String!) {
-    products(query: $query, first: 50) {
+  query SearchProducts($query: String!, $first: Int!, $after: String) {
+    products(query: $query, first: $first, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
       edges {
         node {
           id
@@ -61,6 +65,10 @@ export default function SearchPage() {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const searchQuery = params.get('query') || '';
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [endCursor, setEndCursor] = useState<string | null>(null);
+  const PRODUCTS_PER_PAGE = 25;
   
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
@@ -69,32 +77,40 @@ export default function SearchPage() {
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [availableBrands, setAvailableBrands] = useState<string[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
-  const [displayedProducts, setDisplayedProducts] = useState<any[]>([]);
-  const PRODUCTS_PER_PAGE = 16;
+  
+  // Calculate paginated products
+  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * PRODUCTS_PER_PAGE,
+    currentPage * PRODUCTS_PER_PAGE
+  );
 
   const buildQuery = useCallback(() => {
-    return `title:*${searchQuery}* OR tag:*${searchQuery}*`;
+    const terms = searchQuery.toLowerCase().split(' ').filter(Boolean);
+    const searchTerm = terms[0];
+    
+    const knownBrands = ['renske', 'carnibest', 'farmfood', 'prins', 'nordic'];
+    
+    if (knownBrands.includes(searchTerm)) {
+      return `(vendor:*${searchTerm}*)`;
+    }
+    
+    return `(title:*${searchTerm}* OR productType:*${searchTerm}* OR tag:*${searchTerm}*)`;
   }, [searchQuery]);
 
   const [result] = useQuery({
     query: SEARCH_PRODUCTS_QUERY,
-    variables: { query: buildQuery() },
+    variables: { 
+      query: buildQuery(),
+      first: 250,
+      after: null
+    },
   });
 
-  const loadMoreProducts = useCallback(() => {
-    const currentLength = displayedProducts.length;
-    const nextProducts = filteredProducts.slice(
-      currentLength,
-      currentLength + PRODUCTS_PER_PAGE
-    );
-    
-    if (nextProducts.length > 0) {
-      setDisplayedProducts(prev => [...prev, ...nextProducts]);
-      setIsFetching(false);
-    }
-  }, [filteredProducts, displayedProducts.length]);
-
-  const { loadMoreRef, isFetching, setIsFetching } = useInfiniteScroll(loadMoreProducts);
+  // Reset pagination when search query or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedPriceRanges, selectedTags, selectedBrands]);
 
   useEffect(() => {
     if (result.data) {
@@ -118,8 +134,8 @@ export default function SearchPage() {
           formattedCompareAtPrice: compareAtPrice ? formatPrice(compareAtPrice) : undefined
         };
       });
-      
-      // Extract unique tags and brands
+
+      // Extract unique tags and brands from all products
       const tags = new Set<string>();
       const brands = new Set<string>();
       products.forEach((product: any) => {
@@ -129,7 +145,7 @@ export default function SearchPage() {
       setAvailableTags(Array.from(tags));
       setAvailableBrands(Array.from(brands));
 
-      // Filter products based on selected filters
+      // Apply filters
       const filtered = products.filter((product: any) => {
         const price = parseFloat(product.priceRange.minVariantPrice.amount);
 
@@ -152,11 +168,13 @@ export default function SearchPage() {
       });
 
       setFilteredProducts(filtered);
-      setDisplayedProducts(filtered.slice(0, PRODUCTS_PER_PAGE));
     }
   }, [result.data, selectedPriceRanges, selectedTags, selectedBrands]);
 
-  const handleFilterChange = (type: 'price' | 'tags' | 'brand', value: string) => {
+  const handleFilterChange = (type: 'price' | 'brand' | 'type', value: string) => {
+    // Reset pagination when filters change
+    setCurrentPage(1);
+
     switch (type) {
       case 'price':
         setSelectedPriceRanges((prev) =>
@@ -165,14 +183,15 @@ export default function SearchPage() {
             : [value]
         );
         break;
-      case 'tags':
-        setSelectedTags((prev) =>
+      case 'brand':
+        setSelectedBrands((prev) =>
           prev.includes(value)
-            ? prev.filter((tag) => tag !== value)
+            ? prev.filter((brand) => brand !== value)
             : [...prev, value]
         );
         break;
-      case 'brand':
+      case 'type':
+        // Handle type filter the same as brand for backward compatibility
         setSelectedBrands((prev) =>
           prev.includes(value)
             ? prev.filter((brand) => brand !== value)
@@ -183,9 +202,15 @@ export default function SearchPage() {
   };
 
   const clearFilters = () => {
+    setCurrentPage(1);
+    setEndCursor(null);
     setSelectedPriceRanges([]);
     setSelectedTags([]);
     setSelectedBrands([]);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
   };
 
   const canonicalUrl = `https://teddyshondenshop.nl/search?query=${encodeURIComponent(searchQuery)}`;
@@ -227,9 +252,7 @@ export default function SearchPage() {
         <div className="flex flex-col lg:flex-row gap-8">
           <aside className="hidden lg:block lg:w-72 flex-shrink-0">
             <SearchFilters
-              availableTags={availableTags}
               availableBrands={availableBrands}
-              selectedTags={selectedTags}
               selectedBrands={selectedBrands}
               selectedPriceRanges={selectedPriceRanges}
               onFilterChange={handleFilterChange}
@@ -255,20 +278,18 @@ export default function SearchPage() {
             <SearchResults
               isLoading={result.fetching}
               error={result.error?.message}
-              products={displayedProducts}
+              products={paginatedProducts}
               searchQuery={searchQuery}
             />
 
-            {displayedProducts.length < filteredProducts.length && (
-              <div
-                ref={loadMoreRef}
-                className="flex justify-center items-center py-8"
-              >
-                {isFetching ? (
-                  <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-                ) : (
-                  <div className="h-8" />
-                )}
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-8">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
               </div>
             )}
           </main>
@@ -278,9 +299,7 @@ export default function SearchPage() {
       <MobileFilterMenu
         isOpen={isFilterMenuOpen}
         onClose={() => setIsFilterMenuOpen(false)}
-        availableTags={availableTags}
         availableBrands={availableBrands}
-        selectedTags={selectedTags}
         selectedBrands={selectedBrands}
         selectedPriceRanges={selectedPriceRanges}
         onFilterChange={handleFilterChange}

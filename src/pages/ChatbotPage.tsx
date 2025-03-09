@@ -23,7 +23,15 @@ export default function ChatbotPage() {
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current) {
+      const chatContainer = messagesEndRef.current.parentElement;
+      if (chatContainer) {
+        const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
+        if (isNearBottom) {
+          chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+      }
+    }
   };
 
   React.useEffect(() => {
@@ -140,7 +148,7 @@ export default function ChatbotPage() {
               </div>
 
               {/* Messages */}
-              <div className="h-[600px] overflow-y-auto p-4 space-y-4">
+              <div className="h-[450px] overflow-y-auto p-4 space-y-4">
                 {messages.map((message, index) => (
                   <div
                     key={index}
@@ -200,6 +208,7 @@ export default function ChatbotPage() {
                     type="submit"
                     disabled={!input.trim() || isLoading}
                     className="bg-[#63D7B2] text-white px-4 py-2 rounded-lg hover:bg-[#47C09A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label="Verstuur bericht"
                   >
                     <Send className="w-5 h-5" />
                   </button>

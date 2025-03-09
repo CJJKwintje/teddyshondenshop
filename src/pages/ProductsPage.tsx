@@ -8,51 +8,98 @@ import MobileFilterMenu from '../components/MobileFilterMenu';
 import BackToTop from '../components/BackToTop';
 import SEO from '../components/SEO';
 import { formatPrice } from '../utils/formatPrice';
+import Pagination from '../components/Pagination';
 
-const PRODUCTS_QUERY = gql`
-  query GetProducts($cursor: String) {
-    products(first: 20, after: $cursor) {
+const PRODUCTS_PER_PAGE = 25;
+
+const PRODUCT_CARD_FRAGMENT = gql`
+  fragment ProductCard on Product {
+    id
+    title
+    productType
+    tags
+    vendor
+    variants(first: 1) {
+      edges {
+        node {
+          id
+          price {
+            amount
+            currencyCode
+          }
+          compareAtPrice {
+            amount
+            currencyCode
+          }
+          quantityAvailable
+        }
+      }
+    }
+    images(first: 1) {
+      edges {
+        node {
+          originalSrc
+          altText
+        }
+      }
+    }
+    priceRange {
+      minVariantPrice {
+        amount
+        currencyCode
+      }
+    }
+  }
+`;
+
+const GET_FILTERS_QUERY = gql`
+  query GetFiltersAndCounts {
+    products(first: 250) {
+      edges {
+        node {
+          vendor
+          priceRange {
+            minVariantPrice {
+              amount
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const FILTERED_PRODUCTS_QUERY = gql`
+  query GetFilteredProducts(
+    $query: String!
+    $first: Int
+    $after: String
+  ) {
+    products(
+      first: $first
+      query: $query
+      after: $after
+    ) {
+      edges {
+        node {
+          ...ProductCard
+        }
+      }
       pageInfo {
         hasNextPage
         endCursor
       }
+    }
+  }
+  ${PRODUCT_CARD_FRAGMENT}
+`;
+
+const ALL_PRODUCTS_QUERY = gql`
+  query GetAllProducts {
+    products(first: 250) {
       edges {
         node {
           id
-          title
-          productType
-          tags
-          vendor
-          variants(first: 250) {
-            edges {
-              node {
-                id
-                price {
-                  amount
-                  currencyCode
-                }
-                compareAtPrice {
-                  amount
-                  currencyCode
-                }
-                quantityAvailable
-              }
-            }
-          }
-          images(first: 1) {
-            edges {
-              node {
-                originalSrc
-                altText
-              }
-            }
-          }
-          priceRange {
-            minVariantPrice {
-              amount
-              currencyCode
-            }
-          }
         }
       }
     }
@@ -63,93 +110,129 @@ export default function ProductsPage() {
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasNextPage, setHasNextPage] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const loadMoreRef = React.useRef<HTMLDivElement>(null);
-
-  // Query products
-  const [result, reexecuteQuery] = useQuery({
-    query: PRODUCTS_QUERY,
-    variables: { cursor }
+  const [currentPage, setCurrentPage] = useState(1);
+  const [cursors, setCursors] = useState<Record<number, string>>({});
+  
+  // Fetch all products to get total count
+  const [allProductsResult] = useQuery({
+    query: ALL_PRODUCTS_QUERY
   });
 
-  // Process query results
-  useEffect(() => {
-    if (result.data?.products) {
-      const newProducts = result.data.products.edges.map(({ node }: any) => {
-        const variants = node.variants.edges;
-        const firstVariant = variants[0]?.node;
-        const hasAvailableVariant = variants.some(
-          ({ node: variant }: any) => variant.quantityAvailable > 0
-        );
-        const compareAtPrice = firstVariant?.compareAtPrice
-          ? parseFloat(firstVariant.compareAtPrice.amount)
-          : undefined;
+  // Fetch filters
+  const [filtersResult] = useQuery({
+    query: GET_FILTERS_QUERY
+  });
 
-        return {
-          ...node,
-          hasAvailableVariant,
-          variantsCount: variants.length,
-          firstVariantId: firstVariant?.id,
-          compareAtPrice,
-          formattedPrice: formatPrice(parseFloat(node.priceRange.minVariantPrice.amount)),
-          formattedCompareAtPrice: compareAtPrice ? formatPrice(compareAtPrice) : undefined
-        };
-      });
-
-      // Filter products based on selected filters
-      const filteredProducts = newProducts.filter((product) => {
-        const price = parseFloat(product.priceRange.minVariantPrice.amount);
-        const matchesPrice =
-          selectedPriceRanges.length === 0 ||
-          selectedPriceRanges.some((range) => {
-            const [min, max] = range.split('-').map(parseFloat);
-            return price >= min && price <= max;
-          });
-
-        const matchesBrands =
-          selectedBrands.length === 0 ||
-          selectedBrands.includes(product.vendor);
-
-        return matchesPrice && matchesBrands;
-      });
-
-      setProducts(prev => cursor ? [...prev, ...filteredProducts] : filteredProducts);
-      setHasNextPage(result.data.products.pageInfo.hasNextPage);
-      setCursor(result.data.products.pageInfo.endCursor);
-      setIsLoadingMore(false);
+  // Build query string based on selected filters
+  const buildFilterQuery = useCallback(() => {
+    const queries: string[] = [];
+    
+    if (selectedBrands.length > 0) {
+      const brandQuery = selectedBrands
+        .map(brand => `(vendor:${brand})`)
+        .join(' OR ');
+      queries.push(`(${brandQuery})`);
     }
-  }, [result.data, cursor]);
+    
+    if (selectedPriceRanges.length > 0) {
+      const priceQueries = selectedPriceRanges.map(range => {
+        const [min, max] = range.split('-').map(parseFloat);
+        return `(variants.price:>=${min} AND variants.price:<=${max})`;
+      });
+      queries.push(`(${priceQueries.join(' OR ')})`);
+    }
+    
+    const finalQuery = queries.length > 0 ? queries.join(' AND ') : '';
+    console.log('Filter Query:', finalQuery); // Debug log
+    return finalQuery;
+  }, [selectedBrands, selectedPriceRanges]);
 
-  // Intersection Observer for infinite scroll
+  // Fetch products with pagination
+  const [productsResult] = useQuery({
+    query: FILTERED_PRODUCTS_QUERY,
+    variables: {
+      query: buildFilterQuery(),
+      first: PRODUCTS_PER_PAGE,
+      after: cursors[currentPage - 1] || null
+    }
+  });
+
+  // Store cursor for next page when we get results
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isLoadingMore && !result.fetching) {
-          setIsLoadingMore(true);
-          reexecuteQuery({ requestPolicy: 'network-only' });
+    if (productsResult.data?.products?.pageInfo?.hasNextPage) {
+      setCursors(prev => ({
+        ...prev,
+        [currentPage]: productsResult.data.products.pageInfo.endCursor
+      }));
+    }
+  }, [productsResult.data, currentPage]);
+
+  // Process available filters from initial query
+  const processFilters = useCallback(() => {
+    if (!filtersResult.data?.products?.edges) return {
+      availableBrands: [],
+      priceRanges: []
+    };
+
+    const products = filtersResult.data.products.edges;
+    const brands = new Set<string>();
+    const prices = new Set<number>();
+
+    products.forEach(({ node }: any) => {
+      if (node.vendor) brands.add(node.vendor);
+      const price = parseFloat(node.priceRange.minVariantPrice.amount);
+      prices.add(Math.floor(price / 25) * 25); // Round to nearest 25
+    });
+
+    return {
+      availableBrands: Array.from(brands),
+      priceRanges: Array.from(prices).sort((a, b) => a - b)
+    };
+  }, [filtersResult.data]);
+
+  // Process products for display
+  const processProducts = useCallback(() => {
+    if (!productsResult.data?.products?.edges) return [];
+
+    return productsResult.data.products.edges.map(({ node }: any) => {
+      const variant = node.variants.edges[0]?.node;
+      const compareAtPrice = variant?.compareAtPrice
+        ? parseFloat(variant.compareAtPrice.amount)
+        : undefined;
+
+      return {
+        ...node,
+        hasAvailableVariant: variant?.quantityAvailable > 0,
+        variantsCount: node.variants.edges.length,
+        firstVariantId: variant?.id,
+        compareAtPrice,
+        formattedPrice: formatPrice(parseFloat(node.priceRange.minVariantPrice.amount)),
+        formattedCompareAtPrice: compareAtPrice ? formatPrice(compareAtPrice) : undefined,
+        image: {
+          src: node.images.edges[0]?.node?.originalSrc,
+          alt: node.images.edges[0]?.node?.altText
         }
-      },
-      { threshold: 1.0 }
-    );
+      };
+    });
+  }, [productsResult.data]);
 
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
+  const { availableBrands, priceRanges } = processFilters();
+  const products = processProducts();
+  const pageInfo = productsResult.data?.products?.pageInfo;
 
-    return () => observer.disconnect();
-  }, [hasNextPage, isLoadingMore, result.fetching]);
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+    // Scroll to top of the page smoothly
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }, []);
 
-  // Handle filter changes
-  const handleFilterChange = (type: 'price' | 'brand', value: string) => {
-    // Reset pagination state
-    setProducts([]);
-    setCursor(null);
-    setHasNextPage(true);
+  const handleFilterChange = (type: 'price' | 'brand' | 'type', value: string) => {
+    setCurrentPage(1);
+    setCursors({});
 
-    // Update filters
     if (type === 'price') {
       setSelectedPriceRanges(prev =>
         prev.includes(value) ? prev.filter(range => range !== value) : [value]
@@ -159,24 +242,14 @@ export default function ProductsPage() {
         prev.includes(value) ? prev.filter(brand => brand !== value) : [...prev, value]
       );
     }
-
-    // Refetch products
-    reexecuteQuery({ requestPolicy: 'network-only' });
   };
 
   const clearFilters = () => {
     setSelectedPriceRanges([]);
     setSelectedBrands([]);
-    setProducts([]);
-    setCursor(null);
-    setHasNextPage(true);
-    reexecuteQuery({ requestPolicy: 'network-only' });
+    setCurrentPage(1);
+    setCursors({});
   };
-
-  // Get unique brands from products
-  const availableBrands = Array.from(new Set(
-    products.map(product => product.vendor).filter(Boolean)
-  ));
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -206,7 +279,7 @@ export default function ProductsPage() {
           <main className="flex-1">
             <div className="flex items-center justify-between mb-6">
               <div className="text-sm text-gray-500">
-                {products.length} producten
+                {products.length} producten op deze pagina
               </div>
               
               <button
@@ -219,12 +292,20 @@ export default function ProductsPage() {
             </div>
             
             <SearchResults
-              isLoading={result.fetching && products.length === 0}
-              error={result.error?.message}
+              isLoading={productsResult.fetching && products.length === 0}
+              error={productsResult.error?.message}
               products={products}
-              loadMoreRef={loadMoreRef}
-              isFetching={isLoadingMore}
             />
+
+            {pageInfo?.hasNextPage && (
+              <div className="mt-8">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={currentPage + (pageInfo.hasNextPage ? 1 : 0)}
+                  onPageChange={handlePageChange}
+                />
+              </div>
+            )}
           </main>
         </div>
       </div>

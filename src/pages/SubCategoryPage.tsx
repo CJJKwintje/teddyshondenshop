@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, ArrowLeft, SlidersHorizontal } from 'lucide-react';
 import { useQuery } from 'urql';
@@ -12,45 +12,59 @@ import MobileFilterMenu from '../components/MobileFilterMenu';
 import BackToTop from '../components/BackToTop';
 import Pagination from '../components/Pagination';
 import Breadcrumbs from '../components/Breadcrumbs';
+import { formatPrice } from '../utils/formatPrice';
 
-const PRODUCTS_QUERY = gql`
-  query GetCategoryProducts($query: String!) {
-    products(first: 250, query: $query) {
+const PRODUCTS_PER_PAGE = 25;
+
+const PRODUCT_CARD_FRAGMENT = gql`
+  fragment ProductCard on Product {
+    id
+    title
+    productType
+    tags
+    vendor
+    variants(first: 1) {
       edges {
         node {
           id
-          title
-          productType
-          tags
+          price {
+            amount
+            currencyCode
+          }
+          compareAtPrice {
+            amount
+            currencyCode
+          }
+          quantityAvailable
+        }
+      }
+    }
+    images(first: 1) {
+      edges {
+        node {
+          originalSrc
+          altText
+        }
+      }
+    }
+    priceRange {
+      minVariantPrice {
+        amount
+        currencyCode
+      }
+    }
+  }
+`;
+
+const GET_FILTERS_QUERY = gql`
+  query GetFiltersAndCounts($query: String!) {
+    products(first: 250, query: $query) {
+      edges {
+        node {
           vendor
-          variants(first: 250) {
-            edges {
-              node {
-                id
-                price {
-                  amount
-                  currencyCode
-                }
-                compareAtPrice {
-                  amount
-                  currencyCode
-                }
-                quantityAvailable
-              }
-            }
-          }
-          images(first: 1) {
-            edges {
-              node {
-                originalSrc
-                altText
-              }
-            }
-          }
           priceRange {
             minVariantPrice {
               amount
-              currencyCode
             }
           }
         }
@@ -59,7 +73,30 @@ const PRODUCTS_QUERY = gql`
   }
 `;
 
-const PRODUCTS_PER_PAGE = 20;
+const FILTERED_PRODUCTS_QUERY = gql`
+  query GetFilteredProducts(
+    $query: String!
+    $first: Int
+    $after: String
+  ) {
+    products(
+      first: $first
+      query: $query
+      after: $after
+    ) {
+      edges {
+        node {
+          ...ProductCard
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+  ${PRODUCT_CARD_FRAGMENT}
+`;
 
 export default function SubCategoryPage() {
   const { category, subcategory } = useParams<{ category: string; subcategory: string }>();
@@ -67,12 +104,54 @@ export default function SubCategoryPage() {
   const [pageData, setPageData] = React.useState<any>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [cursors, setCursors] = useState<Record<number, string>>({});
   const { categories } = useNavigation();
   const currentCategory = categories.find(cat => cat.slug === category);
+
+  // Build base query for the category/subcategory
+  const buildBaseQuery = useCallback(() => {
+    if (!subcategory) return '';
+    
+    // Get the first word of the subcategory
+    const searchTerm = subcategory.replace(/-/g, ' ').toLowerCase().split(/\s+/)[0];
+    
+    // If it's a brand name, search by vendor
+    const knownBrands = ['renske', 'carnibest', 'farmfood', 'prins', 'nordic'];
+    if (knownBrands.includes(searchTerm)) {
+      return `(vendor:*${searchTerm}*)`;
+    }
+    
+    // Otherwise search across multiple fields
+    return `(title:*${searchTerm}* OR productType:*${searchTerm}* OR tag:*${searchTerm}* OR vendor:*${searchTerm}*)`;
+  }, [subcategory]);
+
+  // Build filter query string based on selected filters
+  const buildFilterQuery = useCallback(() => {
+    const queries: string[] = [];
+    const baseQuery = buildBaseQuery();
+    if (baseQuery) queries.push(baseQuery);
+    
+    if (selectedBrands.length > 0) {
+      const brandQuery = selectedBrands
+        .map(brand => `(vendor:${brand})`)
+        .join(' OR ');
+      queries.push(`(${brandQuery})`);
+    }
+    
+    if (selectedPriceRanges.length > 0) {
+      const priceQueries = selectedPriceRanges.map(range => {
+        const [min, max] = range.split('-').map(parseFloat);
+        return `(variants.price:>=${min} AND variants.price:<=${max})`;
+      });
+      queries.push(`(${priceQueries.join(' OR ')})`);
+    }
+    
+    return queries.length > 0 ? queries.join(' AND ') : baseQuery;
+  }, [selectedBrands, selectedPriceRanges, buildBaseQuery]);
 
   // Fetch category page data from Contentful
   React.useEffect(() => {
@@ -99,73 +178,102 @@ export default function SubCategoryPage() {
     fetchPageData();
   }, [category, subcategory]);
 
-  // Fetch products from Shopify
-  const [result] = useQuery({
-    query: PRODUCTS_QUERY,
+  // Fetch filters
+  const [filtersResult] = useQuery({
+    query: GET_FILTERS_QUERY,
     variables: { 
-      query: `${category} ${subcategory}`.replace(/-/g, ' ')
+      query: buildBaseQuery()
     },
     pause: !category || !subcategory
   });
 
-  // Process and filter products
-  const processProducts = () => {
-    if (!result.data?.products?.edges) return [];
+  // Fetch products with pagination
+  const [productsResult] = useQuery({
+    query: FILTERED_PRODUCTS_QUERY,
+    variables: {
+      query: buildFilterQuery(),
+      first: PRODUCTS_PER_PAGE,
+      after: cursors[currentPage - 1] || null
+    },
+    pause: !category || !subcategory
+  });
 
-    const allProducts = result.data.products.edges.map(({ node }: any) => {
-      const variants = node.variants.edges;
-      const hasAvailableVariant = variants.some(
-        ({ node: variant }: any) => variant.quantityAvailable > 0
-      );
-      const firstVariant = variants[0]?.node;
-      const compareAtPrice = firstVariant?.compareAtPrice
-        ? parseFloat(firstVariant.compareAtPrice.amount)
+  // Store cursor for next page when we get results
+  useEffect(() => {
+    if (productsResult.data?.products?.pageInfo?.hasNextPage) {
+      setCursors(prev => ({
+        ...prev,
+        [currentPage]: productsResult.data.products.pageInfo.endCursor
+      }));
+    }
+  }, [productsResult.data, currentPage]);
+
+  // Process available filters from initial query
+  const processFilters = useCallback(() => {
+    if (!filtersResult.data?.products?.edges) return {
+      availableBrands: [],
+      priceRanges: []
+    };
+
+    const products = filtersResult.data.products.edges;
+    const brands = new Set<string>();
+    const prices = new Set<number>();
+
+    products.forEach(({ node }: any) => {
+      if (node.vendor) brands.add(node.vendor);
+      const price = parseFloat(node.priceRange.minVariantPrice.amount);
+      prices.add(Math.floor(price / 25) * 25); // Round to nearest 25
+    });
+
+    return {
+      availableBrands: Array.from(brands),
+      priceRanges: Array.from(prices).sort((a, b) => a - b)
+    };
+  }, [filtersResult.data]);
+
+  // Process products for display
+  const processProducts = useCallback(() => {
+    if (!productsResult.data?.products?.edges) return [];
+
+    return productsResult.data.products.edges.map(({ node }: any) => {
+      const variant = node.variants.edges[0]?.node;
+      const compareAtPrice = variant?.compareAtPrice
+        ? parseFloat(variant.compareAtPrice.amount)
         : undefined;
 
       return {
         ...node,
-        hasAvailableVariant,
-        variantsCount: variants.length,
-        firstVariantId: firstVariant?.id,
+        hasAvailableVariant: variant?.quantityAvailable > 0,
+        variantsCount: node.variants.edges.length,
+        firstVariantId: variant?.id,
         compareAtPrice,
-        formattedPrice: parseFloat(node.priceRange.minVariantPrice.amount).toFixed(2).replace('.', ','),
-        formattedCompareAtPrice: compareAtPrice ? compareAtPrice.toFixed(2).replace('.', ',') : undefined
+        formattedPrice: formatPrice(parseFloat(node.priceRange.minVariantPrice.amount)),
+        formattedCompareAtPrice: compareAtPrice ? formatPrice(compareAtPrice) : undefined,
+        image: {
+          src: node.images.edges[0]?.node?.originalSrc,
+          alt: node.images.edges[0]?.node?.altText
+        }
       };
     });
+  }, [productsResult.data]);
 
-    // Apply filters
-    return allProducts.filter((product: any) => {
-      const price = parseFloat(product.priceRange.minVariantPrice.amount);
-      
-      const matchesPrice =
-        selectedPriceRanges.length === 0 ||
-        selectedPriceRanges.some((range) => {
-          const [min, max] = range.split('-').map(parseFloat);
-          return price >= min && price <= max;
-        });
+  const { availableBrands, priceRanges } = processFilters();
+  const products = processProducts();
+  const pageInfo = productsResult.data?.products?.pageInfo;
 
-      const matchesBrands =
-        selectedBrands.length === 0 ||
-        selectedBrands.includes(product.vendor);
-
-      return matchesPrice && matchesBrands;
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+    // Scroll to top of the page smoothly
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
     });
-  };
+  }, []);
 
-  const filteredProducts = processProducts();
-  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
-  const paginatedProducts = filteredProducts.slice(
-    (currentPage - 1) * PRODUCTS_PER_PAGE,
-    currentPage * PRODUCTS_PER_PAGE
-  );
+  const handleFilterChange = (type: 'price' | 'brand' | 'type', value: string) => {
+    setCurrentPage(1);
+    setCursors({});
 
-  // Get unique brands
-  const availableBrands = Array.from(
-    new Set(filteredProducts.map((product: any) => product.vendor).filter(Boolean))
-  );
-
-  const handleFilterChange = (type: 'price' | 'brand', value: string) => {
-    setCurrentPage(1); // Reset to first page when filters change
     if (type === 'price') {
       setSelectedPriceRanges(prev =>
         prev.includes(value) ? prev.filter(range => range !== value) : [value]
@@ -181,17 +289,51 @@ export default function SubCategoryPage() {
     setSelectedPriceRanges([]);
     setSelectedBrands([]);
     setCurrentPage(1);
+    setCursors({});
   };
 
-  if (isLoading || result.fetching) {
+  if (isLoading || productsResult.fetching) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-8" /> {/* Breadcrumb skeleton */}
+          <div className="h-10 w-64 bg-gray-200 rounded animate-pulse mb-8" /> {/* Title skeleton */}
+
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Filters skeleton - Desktop */}
+            <aside className="hidden lg:block lg:w-72 flex-shrink-0">
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="h-6 w-24 bg-gray-200 rounded animate-pulse mb-6" />
+                <div className="space-y-4">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-5 bg-gray-200 rounded animate-pulse" />
+                  ))}
+                </div>
+              </div>
+            </aside>
+
+            {/* Main Content skeleton */}
+            <main className="flex-1">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden">
+                    <div className="aspect-square bg-gray-200 animate-pulse" /> {/* Image skeleton */}
+                    <div className="p-4">
+                      <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse mb-2" /> {/* Title skeleton */}
+                      <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse mb-4" /> {/* Price skeleton */}
+                      <div className="h-8 bg-gray-200 rounded animate-pulse" /> {/* Button skeleton */}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </main>
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (error || result.error || !pageData) {
+  if (error || productsResult.error || !pageData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
@@ -261,7 +403,7 @@ export default function SubCategoryPage() {
           <main className="flex-1">
             <div className="flex items-center justify-between mb-6">
               <div className="text-sm text-gray-500">
-                {filteredProducts.length} producten
+                {products.length} producten op deze pagina
               </div>
               
               <button
@@ -274,17 +416,17 @@ export default function SubCategoryPage() {
             </div>
 
             <SearchResults
-              products={paginatedProducts}
-              loadMoreRef={null}
-              isFetching={false}
+              isLoading={productsResult.fetching && products.length === 0}
+              error={productsResult.error as string}
+              products={products}
             />
 
-            {totalPages > 1 && (
+            {pageInfo?.hasNextPage && (
               <div className="mt-8">
                 <Pagination
                   currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
+                  totalPages={currentPage + (pageInfo.hasNextPage ? 1 : 0)}
+                  onPageChange={handlePageChange}
                 />
               </div>
             )}
@@ -293,7 +435,7 @@ export default function SubCategoryPage() {
             {pageData.fields.description && (
               <div className="mt-16 bg-white rounded-xl p-8 shadow-sm">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                {pageData.fields.title}
+                  {pageData.fields.title}
                 </h2>
                 <div className="prose prose-blue max-w-none">
                   <p className="text-gray-600">{pageData.fields.description}</p>

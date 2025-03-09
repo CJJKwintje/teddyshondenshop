@@ -4,8 +4,6 @@ interface FilterProps {
   availableBrands?: string[];
   selectedBrands?: string[];
   selectedPriceRanges: string[];
-  productTypes?: string[];
-  selectedTypes?: string[];
   onFilterChange: (type: 'price' | 'brand' | 'type', value: string) => void;
   onClearFilters: () => void;
 }
@@ -14,8 +12,6 @@ export default function SearchFilters({
   availableBrands = [],
   selectedBrands = [],
   selectedPriceRanges,
-  productTypes = [],
-  selectedTypes = [],
   onFilterChange,
   onClearFilters,
 }: FilterProps) {
@@ -26,6 +22,7 @@ export default function SearchFilters({
     return max;
   };
 
+  const [showAllBrands, setShowAllBrands] = useState(false);
   const [currentPrice, setCurrentPrice] = useState(getCurrentPrice());
 
   // Update currentPrice when selectedPriceRanges changes
@@ -41,8 +38,11 @@ export default function SearchFilters({
   };
 
   const hasActiveFilters = selectedPriceRanges.length > 0 || 
-                          selectedBrands.length > 0 || 
-                          selectedTypes.length > 0;
+                          selectedBrands.length > 0;
+
+  // Get visible brands based on showAllBrands state
+  const visibleBrands = showAllBrands ? availableBrands : availableBrands.slice(0, 5);
+  const hasMoreBrands = availableBrands.length > 5;
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -59,27 +59,51 @@ export default function SearchFilters({
       </div>
 
       <div className="space-y-6">
-        {/* Type Filter - Only show for categories with productTypes */}
-        {productTypes.length > 0 && (
+        {/* Brand Filter */}
+        {availableBrands.length > 0 && (
           <div>
-            <h3 className="text-sm font-medium text-gray-900 mb-4">Type</h3>
+            <h3 className="text-sm font-medium text-gray-900 mb-4">Merk</h3>
             <div className="space-y-3">
-              {productTypes.map((type) => (
+              {visibleBrands.map((brand) => (
                 <label
-                  key={type}
+                  key={brand}
                   className="flex items-center cursor-pointer group"
                 >
                   <input
                     type="checkbox"
-                    checked={selectedTypes.includes(type)}
-                    onChange={() => onFilterChange('type', type)}
+                    checked={selectedBrands.includes(brand)}
+                    onChange={() => onFilterChange('brand', brand)}
                     className="w-4 h-4 text-[#63D7B2] border-gray-300 rounded focus:ring-[#63D7B2]"
                   />
                   <span className="ml-3 text-sm text-gray-600 group-hover:text-gray-900">
-                    {type}
+                    {brand}
                   </span>
                 </label>
               ))}
+              
+              {hasMoreBrands && (
+                <button
+                  onClick={() => setShowAllBrands(!showAllBrands)}
+                  className="flex items-center text-sm text-blue-600 hover:text-blue-800 mt-2 group"
+                >
+                  <span>{showAllBrands ? 'Minder tonen' : 'Meer tonen'}</span>
+                  <svg
+                    className={`ml-1 w-4 h-4 transform transition-transform ${
+                      showAllBrands ? 'rotate-180' : ''
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -110,31 +134,6 @@ export default function SearchFilters({
             </div>
           </div>
         </div>
-
-        {/* Brand Filter */}
-        {availableBrands.length > 0 && (
-          <div>
-            <h3 className="text-sm font-medium text-gray-900 mb-4">Merk</h3>
-            <div className="space-y-3">
-              {availableBrands.map((brand) => (
-                <label
-                  key={brand}
-                  className="flex items-center cursor-pointer group"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedBrands.includes(brand)}
-                    onChange={() => onFilterChange('brand', brand)}
-                    className="w-4 h-4 text-[#63D7B2] border-gray-300 rounded focus:ring-[#63D7B2]"
-                  />
-                  <span className="ml-3 text-sm text-gray-600 group-hover:text-gray-900">
-                    {brand}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
