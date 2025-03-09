@@ -4,6 +4,15 @@ import { useFooterContent } from '../hooks/useFooterContent';
 import { Loader2 } from 'lucide-react';
 import { documentToReactComponents } from '@contentful/rich-text-react-renderer';
 import { FooterLink } from '../services/contentful';
+import { BLOCKS } from '@contentful/rich-text-types';
+
+const richTextOptions = {
+  renderNode: {
+    [BLOCKS.PARAGRAPH]: (node: any, children: any) => (
+      <p className="text-gray-400 mb-4 whitespace-pre-line leading-relaxed">{children}</p>
+    )
+  }
+};
 
 export default function Footer() {
   const { 
@@ -19,14 +28,19 @@ export default function Footer() {
   } = useFooterContent();
   const navigate = useNavigate();
 
-  const handleLinkClick = (link: FooterLink) => (e: React.MouseEvent) => {
+  const handleLinkClick = (link: any) => (e: React.MouseEvent) => {
     e.preventDefault();
     
     // For legal pages, use the link field directly
     if (link.fields.contentModel === 'legalPage') {
       navigate(`/${link.fields.link}`);
-    } else {
-      // For regular links
+    } 
+    // For category pages, use the slug field
+    else if (link.fields.slug) {
+      navigate(`/categorie/${link.fields.slug}`);
+    }
+    // For regular links
+    else {
       navigate(link.fields.link);
     }
   };
@@ -54,16 +68,16 @@ export default function Footer() {
           {/* Column 1 */}
           <div>
             <h3 className="text-xl font-semibold mb-4">{col1Title}</h3>
-            <div className="prose prose-invert max-w-none mb-4">
-              {documentToReactComponents(col1Text)}
+            <div className="mb-4">
+              {documentToReactComponents(col1Text, richTextOptions)}
             </div>
             <div className="flex flex-col space-y-2">
               {col1?.map((item, index) => (
                 <a
                   key={index}
-                  href={item.fields.link}
+                  href={item.fields.slug ? `/categorie/${item.fields.slug}` : item.fields.link}
                   onClick={handleLinkClick(item)}
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="text-gray-400 hover:text-white transition-colors cursor-pointer"
                 >
                   {item.fields.title}
                 </a>
@@ -78,9 +92,9 @@ export default function Footer() {
               {col2?.map((item, index) => (
                 <a
                   key={index}
-                  href={item.fields.link}
+                  href={item.fields.slug ? `/categorie/${item.fields.slug}` : item.fields.link}
                   onClick={handleLinkClick(item)}
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="text-gray-400 hover:text-white transition-colors cursor-pointer"
                 >
                   {item.fields.title}
                 </a>
@@ -95,9 +109,9 @@ export default function Footer() {
               {col3?.map((item, index) => (
                 <a
                   key={index}
-                  href={item.fields.link}
+                  href={item.fields.slug ? `/categorie/${item.fields.slug}` : item.fields.link}
                   onClick={handleLinkClick(item)}
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="text-gray-400 hover:text-white transition-colors cursor-pointer"
                 >
                   {item.fields.title}
                 </a>
