@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery } from 'urql';
 import { gql } from 'urql';
-import { SlidersHorizontal, Loader2 } from 'lucide-react';
+import { SlidersHorizontal, Loader2, Dog, Bone, Cookie, MapPin, Moon, Shirt, ChevronLeft, ChevronRight } from 'lucide-react';
 import SearchFilters from '../components/SearchFilters';
 import SearchResults from '../components/SearchResults';
 import MobileFilterMenu from '../components/MobileFilterMenu';
@@ -9,8 +9,84 @@ import BackToTop from '../components/BackToTop';
 import SEO from '../components/SEO';
 import { formatPrice } from '../utils/formatPrice';
 import Pagination from '../components/Pagination';
+import ActiveFilterTags from '../components/ActiveFilterTags';
+import { getCategoryPageBySlug } from '../services/contentful';
 
 const PRODUCTS_PER_PAGE = 25;
+
+// Add type definitions
+interface CategoryMapping {
+  label: string;
+  productTypes: string[];
+}
+
+interface CategoryData {
+  title: string;
+  slug: string;
+  bannerSubtitle?: string;
+  bannerImage?: {
+    fields: {
+      file: {
+        url: string;
+      };
+    };
+  };
+}
+
+type Categories = {
+  [key: string]: CategoryMapping;
+};
+
+const categoryConfig = {
+  'Hondenvoeding': {
+    icon: Dog,
+    color: 'bg-amber-500',
+    description: 'Premium voeding voor jouw hond'
+  },
+  'Hondensnacks': {
+    icon: Cookie,
+    color: 'bg-green-500',
+    description: 'Gezonde beloningen & treats'
+  },
+  'Op pad': {
+    icon: MapPin,
+    color: 'bg-blue-500',
+    description: 'Riemen, halsbanden & meer'
+  },
+  'Slapen': {
+    icon: Moon,
+    color: 'bg-indigo-500',
+    description: 'Comfortabele manden & kussens'
+  },
+  'Hondenkleding': {
+    icon: Shirt,
+    color: 'bg-teal-500',
+    description: 'Jassen & accessoires voor elk seizoen'
+  }
+};
+
+const CATEGORY_MAPPING: Categories = {
+  'Hondenvoeding': {
+    label: 'Hondenvoeding',
+    productTypes: ['DIEPVRIESVOER', 'DROOGVOER', 'NATVOER', 'VOER/DRINKBAKKEN']
+  },
+  'Hondensnacks': {
+    label: 'Hondensnacks',
+    productTypes: ['SNACKS', 'SNACKS GEDROOGD', 'SNACKS GIST', 'SNACKS HARD', 'SNACKS KAUW', 'SNACKS KOEK', 'SNACKS ZACHT']
+  },
+  'Op pad': {
+    label: 'Op pad',
+    productTypes: ['HALSBANDEN MET LICHTJES', 'HALSBANDEN/LIJNEN KUNSTLEER', 'HALSBANDEN/LIJNEN LEER', 'HALSBANDEN/LIJNEN NYLON', 'HALSBANDEN/LIJNEN OVERIG', 'HONDENTAS', 'OUTDOOR', 'VERVOERBOX']
+  },
+  'Slapen': {
+    label: 'Slapen',
+    productTypes: ['BEDDEN/MANDEN/KUSSENS']
+  },
+  'Hondenkleding': {
+    label: 'Hondenkleding',
+    productTypes: ['KLEDING']
+  }
+};
 
 const PRODUCT_CARD_FRAGMENT = gql`
   fragment ProductCard on Product {
@@ -112,6 +188,11 @@ export default function ProductsPage() {
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [cursors, setCursors] = useState<Record<number, string>>({});
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categoryData, setCategoryData] = useState<Record<string, CategoryData>>({});
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   // Fetch all products to get total count
   const [allProductsResult] = useQuery({
@@ -126,6 +207,15 @@ export default function ProductsPage() {
   // Build query string based on selected filters
   const buildFilterQuery = useCallback(() => {
     const queries: string[] = [];
+    
+    // Add category filter
+    if (selectedCategory && CATEGORY_MAPPING[selectedCategory]) {
+      const categoryTypes = CATEGORY_MAPPING[selectedCategory].productTypes;
+      const productTypeQuery = categoryTypes
+        .map(type => `(product_type:${type})`)
+        .join(' OR ');
+      queries.push(`(${productTypeQuery})`);
+    }
     
     if (selectedBrands.length > 0) {
       const brandQuery = selectedBrands
@@ -142,10 +232,8 @@ export default function ProductsPage() {
       queries.push(`(${priceQueries.join(' OR ')})`);
     }
     
-    const finalQuery = queries.length > 0 ? queries.join(' AND ') : '';
-    console.log('Filter Query:', finalQuery); // Debug log
-    return finalQuery;
-  }, [selectedBrands, selectedPriceRanges]);
+    return queries.length > 0 ? queries.join(' AND ') : '';
+  }, [selectedBrands, selectedPriceRanges, selectedCategory]);
 
   // Fetch products with pagination
   const [productsResult] = useQuery({
@@ -244,12 +332,60 @@ export default function ProductsPage() {
     }
   };
 
+  const handleCategoryChange = (category: string) => {
+    setCurrentPage(1);
+    setCursors({});
+    setSelectedCategory(prev => prev === category ? null : category);
+  };
+
   const clearFilters = () => {
     setSelectedPriceRanges([]);
     setSelectedBrands([]);
+    setSelectedCategory(null);
     setCurrentPage(1);
     setCursors({});
   };
+
+  const handleRemoveFilter = (type: 'price' | 'brand', value: string) => {
+    setCurrentPage(1);
+    setCursors({});
+
+    if (type === 'price') {
+      setSelectedPriceRanges(prev =>
+        prev.filter(range => range !== value)
+      );
+    } else if (type === 'brand') {
+      setSelectedBrands(prev =>
+        prev.filter(brand => brand !== value)
+      );
+    }
+  };
+
+  // Fetch category data from Contentful
+  useEffect(() => {
+    const fetchCategoryData = async () => {
+      try {
+        const categoryPromises = Object.keys(CATEGORY_MAPPING).map(async (category) => {
+          const slug = category.toLowerCase().replace(/ /g, '-');
+          const data = await getCategoryPageBySlug(slug);
+          return [category, data];
+        });
+
+        const results = await Promise.all(categoryPromises);
+        const categoryDataMap = Object.fromEntries(
+          results.filter(([_, data]) => data !== null)
+        );
+
+        setCategoryData(categoryDataMap);
+      } catch (error) {
+        console.error('Error fetching category data:', error);
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    };
+
+    fetchCategoryData();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -265,7 +401,89 @@ export default function ProductsPage() {
           Alle Producten
         </h1>
 
+        {/* Category filter cards */}
+        <div className="mb-16">
+          <div className="relative">
+            {scrollPosition > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (containerRef.current) {
+                    const scrollAmount = -containerRef.current.offsetWidth;
+                    containerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+                    setScrollPosition(prev => Math.max(0, prev + scrollAmount));
+                  }
+                }}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white rounded-full p-2 shadow-lg hover:bg-gray-50"
+                aria-label="Scroll left"
+              >
+                <ChevronLeft className="w-6 h-6 text-gray-600" />
+              </button>
+            )}
+
+            <div
+              ref={containerRef}
+              className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-4 md:gap-6 pb-4"
+              onScroll={(e) => setScrollPosition(e.currentTarget.scrollLeft)}
+            >
+              {Object.entries(CATEGORY_MAPPING).map(([key, { label }]) => {
+                const data = categoryData[key];
+                const imageUrl = data?.bannerImage?.fields?.file?.url;
+                
+                return (
+                  <button
+                    key={key}
+                    onClick={() => handleCategoryChange(key)}
+                    className="flex-none w-[calc(85%-1rem)] sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1rem)] xl:w-[calc(25%-1rem)] snap-start relative rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden group h-48 sm:h-48"
+                  >
+                    {imageUrl ? (
+                      <div 
+                        className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
+                        style={{ 
+                          backgroundImage: `url(${imageUrl})`,
+                          filter: selectedCategory === key ? 'brightness(0.5)' : 'brightness(0.7)'
+                        }}
+                      />
+                    ) : (
+                      <div className={`absolute inset-0 ${selectedCategory === key ? 'bg-gray-700' : 'bg-gray-500'}`} />
+                    )}
+                    
+                    <div className="relative h-full p-6 flex flex-col justify-between z-10 text-white">
+                      <h3 className="text-xl font-semibold group-hover:text-white/90 transition-colors text-left">
+                        {data?.title || label}
+                      </h3>
+                      {data?.bannerSubtitle && (
+                        <p className="text-white/80 line-clamp-2 text-sm text-left">
+                          {data.bannerSubtitle}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {containerRef.current && containerRef.current.scrollWidth - containerRef.current.clientWidth > scrollPosition && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (containerRef.current) {
+                    const scrollAmount = containerRef.current.offsetWidth;
+                    containerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+                    setScrollPosition(prev => prev + scrollAmount);
+                  }
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white rounded-full p-2 shadow-lg hover:bg-gray-50"
+                aria-label="Scroll right"
+              >
+                <ChevronRight className="w-6 h-6 text-gray-600" />
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="flex flex-col lg:flex-row gap-8">
+          {/* Filters - Desktop */}
           <aside className="hidden lg:block lg:w-72 flex-shrink-0">
             <SearchFilters
               availableBrands={availableBrands}
@@ -276,12 +494,9 @@ export default function ProductsPage() {
             />
           </aside>
 
+          {/* Main Content */}
           <main className="flex-1">
-            <div className="flex items-center justify-between mb-6">
-              <div className="text-sm text-gray-500">
-                {products.length} producten op deze pagina
-              </div>
-              
+            <div className="flex items-center justify-end mb-6">
               <button
                 onClick={() => setIsFilterMenuOpen(true)}
                 className="lg:hidden inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -290,6 +505,12 @@ export default function ProductsPage() {
                 Filters
               </button>
             </div>
+
+            <ActiveFilterTags
+              selectedBrands={selectedBrands}
+              selectedPriceRanges={selectedPriceRanges}
+              onRemoveFilter={handleRemoveFilter}
+            />
             
             <SearchResults
               isLoading={productsResult.fetching && products.length === 0}

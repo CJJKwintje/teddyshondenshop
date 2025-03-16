@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from 'react';
 
+// Add helper function to format text display
+const formatDisplayText = (text: string): string => {
+  // Split by spaces and handle each word
+  return text.split(' ').map(word => {
+    // Handle special cases like "K9" or other specific brand formatting
+    if (word === 'K9') return word;
+    
+    // Convert to lowercase and capitalize first letter
+    return word.toLowerCase().replace(/^\w/, c => c.toUpperCase());
+  }).join(' ');
+};
+
 interface FilterProps {
   availableBrands?: string[];
   selectedBrands?: string[];
@@ -76,7 +88,7 @@ export default function SearchFilters({
                     className="w-4 h-4 text-[#63D7B2] border-gray-300 rounded focus:ring-[#63D7B2]"
                   />
                   <span className="ml-3 text-sm text-gray-600 group-hover:text-gray-900">
-                    {brand}
+                    {formatDisplayText(brand)}
                   </span>
                 </label>
               ))}

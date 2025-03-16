@@ -10,6 +10,7 @@ import BackToTop from '../components/BackToTop';
 import SEO from '../components/SEO';
 import { formatPrice } from '../utils/formatPrice';
 import Pagination from '../components/Pagination';
+import ActiveFilterTags from '../components/ActiveFilterTags';
 
 const SEARCH_PRODUCTS_QUERY = gql`
   query SearchProducts($query: String!, $first: Int!, $after: String) {
@@ -213,6 +214,20 @@ export default function SearchPage() {
     setCurrentPage(newPage);
   };
 
+  const handleRemoveFilter = (type: 'price' | 'brand', value: string) => {
+    setCurrentPage(1);
+
+    if (type === 'price') {
+      setSelectedPriceRanges(prev =>
+        prev.filter(range => range !== value)
+      );
+    } else if (type === 'brand') {
+      setSelectedBrands(prev =>
+        prev.filter(brand => brand !== value)
+      );
+    }
+  };
+
   const canonicalUrl = `https://teddyshondenshop.nl/search?query=${encodeURIComponent(searchQuery)}`;
   
   const getMetaDescription = () => {
@@ -261,11 +276,7 @@ export default function SearchPage() {
           </aside>
 
           <main className="flex-1">
-            <div className="flex items-center justify-between mb-6">
-              <div className="text-sm text-gray-500">
-                {filteredProducts.length} producten gevonden
-              </div>
-              
+            <div className="flex items-center justify-end mb-6">
               <button
                 onClick={() => setIsFilterMenuOpen(true)}
                 className="lg:hidden inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -274,6 +285,12 @@ export default function SearchPage() {
                 Filters
               </button>
             </div>
+
+            <ActiveFilterTags
+              selectedBrands={selectedBrands}
+              selectedPriceRanges={selectedPriceRanges}
+              onRemoveFilter={handleRemoveFilter}
+            />
             
             <SearchResults
               isLoading={result.fetching}

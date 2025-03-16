@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Provider as UrqlProvider } from 'urql';
 import { HelmetProvider } from 'react-helmet-async';
@@ -23,9 +23,12 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import CartPreview from './components/CartPreview';
 import ScrollToTop from './components/ScrollToTop';
 import SubCategoryPage from './pages/SubCategoryPage';
+import CookieBanner from './components/CookieBanner';
+import { CookieProvider } from './context/CookieContext';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 function App() {
-  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
     <HelmetProvider>
@@ -34,29 +37,33 @@ function App() {
           <CustomerProvider>
             <BrowserRouter>
               <CartProvider>
-                <ScrollToTop />
-                <div className="min-h-screen bg-gray-50">
-                  <Navbar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
+                <CookieProvider>
+                  <ScrollToTop />
+                  <div className="min-h-screen bg-gray-50">
+                    <Navbar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
 
-                  <Routes>
-                    <Route path="/" element={<HomePage />} />
-                    <Route path="/cart" element={<CartPage />} />
-                    <Route path="/search" element={<SearchPage />} />
-                    <Route path="/producten" element={<ProductsPage />} />
-                    <Route path="/product/:id" element={<ProductPage />} />
-                    <Route path="/categorie/:category" element={<CategoryPage />} />
-                    <Route path="/categorie/:category/:subcategory" element={<SubCategoryPage />} />
-                    <Route path="/chat" element={<ChatbotPage />} />
-                    <Route path="/account/*" element={<AccountPage />} />
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
-                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                    <Route path="/:slug" element={<ContentPage />} />
-                  </Routes>
+                    <Routes>
+                      <Route path="/" element={<HomePage />} />
+                      <Route path="/cart" element={<CartPage />} />
+                      <Route path="/search" element={<SearchPage />} />
+                      <Route path="/producten" element={<ProductsPage />} />
+                      <Route path="/product/:id" element={<ProductPage />} />
+                      <Route path="/categorie/:category" element={<CategoryPage />} />
+                      <Route path="/categorie/:category/:subcategory" element={<SubCategoryPage />} />
+                      <Route path="/chat" element={<ChatbotPage />} />
+                      <Route path="/account/*" element={<AccountPage />} />
+                      <Route path="/login" element={<LoginPage />} />
+                      <Route path="/register" element={<RegisterPage />} />
+                      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                      <Route path="/account/reset/:customerId/:resetToken" element={<ResetPasswordPage />} />
+                      <Route path="/:slug" element={<ContentPage />} />
+                    </Routes>
 
-                  <CartPreview />
-                  <Footer />
-                </div>
+                    <CartPreview />
+                    <Footer />
+                    <CookieBanner />
+                  </div>
+                </CookieProvider>
               </CartProvider>
             </BrowserRouter>
           </CustomerProvider>

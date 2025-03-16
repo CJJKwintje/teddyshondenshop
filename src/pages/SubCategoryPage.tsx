@@ -13,6 +13,7 @@ import BackToTop from '../components/BackToTop';
 import Pagination from '../components/Pagination';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { formatPrice } from '../utils/formatPrice';
+import ActiveFilterTags from '../components/ActiveFilterTags';
 
 const PRODUCTS_PER_PAGE = 25;
 
@@ -98,10 +99,48 @@ const FILTERED_PRODUCTS_QUERY = gql`
   ${PRODUCT_CARD_FRAGMENT}
 `;
 
+interface NavigationCategory {
+  mainCategory: string;
+  slug: string;
+  productTypes: string[];
+  categoryPage: CategoryPage | null;
+}
+
+interface CategoryPage {
+  fields: {
+    title: string;
+    slug: string;
+    description?: string;
+    seoTitle?: string;
+    seoDescription?: string;
+    productType?: string[];
+  };
+}
+
+interface PageData {
+  fields: {
+    title: string;
+    slug: string;
+    description?: string;
+    seoTitle?: string;
+    seoDescription?: string;
+    productType?: string[];
+  };
+}
+
+interface ProductNode {
+  productType: string;
+  // ... other product fields if needed
+}
+
+interface ProductEdge {
+  node: ProductNode;
+}
+
 export default function SubCategoryPage() {
   const { category, subcategory } = useParams<{ category: string; subcategory: string }>();
   const navigate = useNavigate();
-  const [pageData, setPageData] = React.useState<any>(null);
+  const [pageData, setPageData] = React.useState<PageData | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
@@ -110,48 +149,7 @@ export default function SubCategoryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [cursors, setCursors] = useState<Record<number, string>>({});
   const { categories } = useNavigation();
-  const currentCategory = categories.find(cat => cat.slug === category);
-
-  // Build base query for the category/subcategory
-  const buildBaseQuery = useCallback(() => {
-    if (!subcategory) return '';
-    
-    // Get the first word of the subcategory
-    const searchTerm = subcategory.replace(/-/g, ' ').toLowerCase().split(/\s+/)[0];
-    
-    // If it's a brand name, search by vendor
-    const knownBrands = ['renske', 'carnibest', 'farmfood', 'prins', 'nordic'];
-    if (knownBrands.includes(searchTerm)) {
-      return `(vendor:*${searchTerm}*)`;
-    }
-    
-    // Otherwise search across multiple fields
-    return `(title:*${searchTerm}* OR productType:*${searchTerm}* OR tag:*${searchTerm}* OR vendor:*${searchTerm}*)`;
-  }, [subcategory]);
-
-  // Build filter query string based on selected filters
-  const buildFilterQuery = useCallback(() => {
-    const queries: string[] = [];
-    const baseQuery = buildBaseQuery();
-    if (baseQuery) queries.push(baseQuery);
-    
-    if (selectedBrands.length > 0) {
-      const brandQuery = selectedBrands
-        .map(brand => `(vendor:${brand})`)
-        .join(' OR ');
-      queries.push(`(${brandQuery})`);
-    }
-    
-    if (selectedPriceRanges.length > 0) {
-      const priceQueries = selectedPriceRanges.map(range => {
-        const [min, max] = range.split('-').map(parseFloat);
-        return `(variants.price:>=${min} AND variants.price:<=${max})`;
-      });
-      queries.push(`(${priceQueries.join(' OR ')})`);
-    }
-    
-    return queries.length > 0 ? queries.join(' AND ') : baseQuery;
-  }, [selectedBrands, selectedPriceRanges, buildBaseQuery]);
+  const currentCategory = categories.find(cat => cat.slug === category) as NavigationCategory | undefined;
 
   // Fetch category page data from Contentful
   React.useEffect(() => {
@@ -166,6 +164,17 @@ export default function SubCategoryPage() {
           throw new Error('Category page not found');
         }
 
+        console.group('📦 Contentful Navigation Link Data');
+        console.log('Category:', category);
+        console.log('Subcategory:', subcategory);
+        console.log('Title:', data.fields.title);
+        console.log('Product Types:', {
+          defined: Boolean(data.fields?.productType?.length),
+          values: data.fields?.productType || [],
+        });
+        console.log('Raw Data:', data);
+        console.groupEnd();
+
         setPageData(data);
       } catch (err) {
         console.error('Error fetching category page:', err);
@@ -177,6 +186,114 @@ export default function SubCategoryPage() {
 
     fetchPageData();
   }, [category, subcategory]);
+
+  // Log navigation link data
+  React.useEffect(() => {
+    if (pageData) {
+      console.group('🔗 Navigation Link Data');
+      console.log('Has Product Type:', Boolean(pageData.fields.productType));
+      if (pageData.fields.productType) {
+        console.log('Product Type Values:', pageData.fields.productType);
+      }
+      console.log('Raw Data:', pageData);
+      console.groupEnd();
+    }
+  }, [pageData]);
+
+  const buildBaseQuery = React.useCallback(() => {
+    if (!pageData) return '';
+
+    // Log query building method
+    console.group('🔍 Building Product Query');
+    
+    // Get the first word of the subcategory title for search
+    const searchTerm = pageData.fields.title?.split(' ')[0] || '';
+    
+    // Check if we have product types defined in Contentful
+    if (pageData.fields.productType && pageData.fields.productType.length > 0) {
+      const productTypeQuery = pageData.fields.productType
+        .map(type => `(product_type:${type})`)
+        .join(' OR ');
+      
+      console.log('Using Contentful Product Types:', {
+        types: pageData.fields.productType,
+        query: productTypeQuery
+      });
+      console.groupEnd();
+      return productTypeQuery;
+    }
+
+    // Get parent category's product types from navigation data
+    const parentCategory = currentCategory?.productTypes || [];
+    
+    // Build query combining search term with parent category product types
+    if (parentCategory.length > 0) {
+      const productTypeQuery = parentCategory
+        .map(type => `(product_type:${type} AND title:${searchTerm}*)`)
+        .join(' OR ');
+
+      console.log('Using Fallback Search with Parent Category Types:', {
+        searchTerm,
+        parentTypes: parentCategory,
+        query: productTypeQuery
+      });
+      console.groupEnd();
+      return productTypeQuery;
+    }
+
+    // Ultimate fallback: just search by title
+    console.log('Using Title-Only Search:', {
+      searchTerm,
+      warning: 'No product types available'
+    });
+    console.groupEnd();
+    return `title:${searchTerm}*`;
+  }, [pageData, currentCategory]);
+
+  // Build filter query string based on selected filters
+  const buildFilterQuery = useCallback(() => {
+    console.group('🔧 Building Filter Query');
+    const queries: string[] = [];
+    const baseQuery = buildBaseQuery();
+    
+    console.log('Base Query:', {
+      query: baseQuery,
+      activeFilters: {
+        brands: selectedBrands.length,
+        priceRanges: selectedPriceRanges.length,
+      },
+    });
+    
+    if (baseQuery) queries.push(baseQuery);
+    
+    if (selectedBrands.length > 0) {
+      const brandQuery = selectedBrands
+        .map(brand => `(vendor:${brand})`)
+        .join(' OR ');
+      queries.push(`(${brandQuery})`);
+      console.log('Brand Filters:', {
+        selectedBrands,
+        generatedQuery: brandQuery,
+      });
+    }
+    
+    if (selectedPriceRanges.length > 0) {
+      const priceQueries = selectedPriceRanges.map(range => {
+        const [min, max] = range.split('-').map(parseFloat);
+        return `(variants.price:>=${min} AND variants.price:<=${max})`;
+      });
+      queries.push(`(${priceQueries.join(' OR ')})`);
+      console.log('Price Filters:', {
+        selectedRanges: selectedPriceRanges,
+        generatedQueries: priceQueries,
+      });
+    }
+    
+    const finalQuery = queries.length > 0 ? queries.join(' AND ') : baseQuery;
+    console.log('Final Combined Query:', finalQuery);
+    console.groupEnd();
+    return finalQuery;
+  }, [selectedBrands, selectedPriceRanges, buildBaseQuery]);
 
   // Fetch filters
   const [filtersResult] = useQuery({
@@ -292,6 +409,61 @@ export default function SubCategoryPage() {
     setCursors({});
   };
 
+  const handleRemoveFilter = (type: 'price' | 'brand', value: string) => {
+    setCurrentPage(1);
+    setCursors({});
+
+    if (type === 'price') {
+      setSelectedPriceRanges(prev =>
+        prev.filter(range => range !== value)
+      );
+    } else if (type === 'brand') {
+      setSelectedBrands(prev =>
+        prev.filter(brand => brand !== value)
+      );
+    }
+  };
+
+  // Add logging for query results
+  React.useEffect(() => {
+    if (productsResult.data) {
+      const products = productsResult.data.products.edges as ProductEdge[];
+      
+      console.group('📊 Query Results');
+      console.log('Query Configuration:', {
+        usedQuery: buildFilterQuery(),
+        totalProducts: products.length,
+        currentPage,
+        productsPerPage: PRODUCTS_PER_PAGE,
+      });
+      
+      // Group products by type
+      const productsByType = products.reduce((acc: Record<string, number>, { node }) => {
+        const type = node.productType;
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      }, {});
+      
+      console.log('Product Type Distribution:', productsByType);
+      
+      // Check if products match expected types
+      if (pageData?.fields?.productType) {
+        const expectedTypes = new Set(pageData.fields.productType);
+        const actualTypes = new Set(products.map(({ node }) => node.productType));
+        
+        console.log('Product Type Verification:', {
+          expectedTypes: Array.from(expectedTypes),
+          actualTypes: Array.from(actualTypes),
+          allExpectedTypesFound: Array.from(expectedTypes).every((type: string) => actualTypes.has(type)),
+          unexpectedTypesFound: Array.from(actualTypes).filter((type: string) => !expectedTypes.has(type)),
+        });
+      }
+      
+      console.log('Raw Response:', productsResult.data);
+      console.groupEnd();
+    }
+  }, [productsResult.data, buildFilterQuery, currentPage, pageData]);
+
   if (isLoading || productsResult.fetching) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -401,11 +573,7 @@ export default function SubCategoryPage() {
 
           {/* Main Content */}
           <main className="flex-1">
-            <div className="flex items-center justify-between mb-6">
-              <div className="text-sm text-gray-500">
-                {products.length} producten op deze pagina
-              </div>
-              
+            <div className="flex items-center justify-end mb-6">
               <button
                 onClick={() => setIsFilterMenuOpen(true)}
                 className="lg:hidden inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -415,9 +583,15 @@ export default function SubCategoryPage() {
               </button>
             </div>
 
+            <ActiveFilterTags
+              selectedBrands={selectedBrands}
+              selectedPriceRanges={selectedPriceRanges}
+              onRemoveFilter={handleRemoveFilter}
+            />
+            
             <SearchResults
               isLoading={productsResult.fetching && products.length === 0}
-              error={productsResult.error as string}
+              error={(productsResult.error as any)?.message || ''}
               products={products}
             />
 

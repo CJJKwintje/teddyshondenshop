@@ -67,6 +67,7 @@ export interface NavigationLink {
     description?: string;
     seoTitle?: string;
     seoDescription?: string;
+    productType?: string[];
   };
 }
 
