@@ -1,19 +1,59 @@
 import { Handler } from '@netlify/functions';
 
 const handler: Handler = async (event) => {
+  console.log('Function called with method:', event.httpMethod);
+  console.log('Request body:', event.body);
+
+  // Handle CORS preflight requests
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      },
+    };
+  }
+
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
+    return {
+      statusCode: 405,
+      body: 'Method Not Allowed',
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      },
+    };
   }
 
   try {
     const { email, firstName, lastName } = JSON.parse(event.body || '{}');
+    console.log('Parsed request data:', { email, firstName, lastName });
 
     if (!email) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Email is required' }) };
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Email is required' }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        },
+      };
     }
 
     const storeDomain = process.env.VITE_SHOPIFY_STORE_DOMAIN;
     const adminToken = process.env.VITE_SHOPIFY_ADMIN_ACCESS_TOKEN;
+
+    console.log('Environment variables:', {
+      hasStoreDomain: !!storeDomain,
+      hasAdminToken: !!adminToken
+    });
 
     if (!storeDomain) {
       throw new Error('VITE_SHOPIFY_STORE_DOMAIN environment variable is not set');
@@ -24,6 +64,7 @@ const handler: Handler = async (event) => {
     }
 
     const storeUrl = `https://${storeDomain}`;
+    console.log('Making search request to:', `${storeUrl}/admin/api/2023-10/customers/search.json`);
 
     // Search for existing customer
     const searchResult = await fetch(
@@ -35,6 +76,8 @@ const handler: Handler = async (event) => {
         },
       }
     );
+
+    console.log('Search response status:', searchResult.status);
 
     const searchData = await searchResult.json();
     const existingCustomer = searchData.customers?.[0];
