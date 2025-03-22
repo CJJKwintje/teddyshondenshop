@@ -122,7 +122,7 @@ export default function ProductCard({
       
       <div className="p-4">
         <div className="min-h-[2.5rem] mb-3">
-          <h3 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
+          <h3 className="font-medium text-gray-900 group-hover:text-[#63D7B2] transition-colors line-clamp-2">
             {title}
           </h3>
         </div>

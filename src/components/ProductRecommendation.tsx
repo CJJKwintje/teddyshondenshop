@@ -70,7 +70,7 @@ export default function ProductRecommendation({ products }: ProductRecommendatio
             </div>
             
             <div className="flex-1 min-w-0">
-              <h3 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2 mb-1">
+              <h3 className="font-medium text-gray-900 group-hover:text-[#63D7B2] transition-colors line-clamp-2 mb-1">
                 {product.title}
               </h3>
               <div className="flex items-center justify-between gap-4">
