@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useNavigation } from '../hooks/useNavigation';
@@ -19,6 +19,14 @@ export default function CategorySlider({ categories }: CategorySliderProps) {
   const [scrollPosition, setScrollPosition] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const { categories: contentfulCategories } = useNavigation();
+
+  // Check scroll position on mount and when content changes
+  useEffect(() => {
+    if (containerRef.current) {
+      const container = containerRef.current;
+      setScrollPosition(container.scrollLeft);
+    }
+  }, [contentfulCategories]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (containerRef.current) {
