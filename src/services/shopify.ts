@@ -1,4 +1,5 @@
 import { Client, cacheExchange, fetchExchange } from 'urql';
+import { gql } from 'urql';
 
 const SHOPIFY_STORE_URL = 'https://yvdedm-5e.myshopify.com/api/2024-01/graphql';
 const SHOPIFY_STOREFRONT_TOKEN = 'f2891c0e910edc30275cac0cc8e32cff';
@@ -216,3 +217,158 @@ export const createCheckout = async (
     throw new Error('Er is een onverwachte fout opgetreden. Probeer het later opnieuw');
   }
 };
+
+interface ShopifyCustomer {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  acceptsMarketing: boolean;
+}
+
+interface ShopifyCustomerResponse {
+  customer: ShopifyCustomer;
+  customerUserErrors: Array<{
+    field: string[];
+    message: string;
+  }>;
+}
+
+interface ShopifyCustomerSearchResponse {
+  customers: ShopifyCustomer[];
+  customerUserErrors: Array<{
+    field: string[];
+    message: string;
+  }>;
+}
+
+const SEARCH_CUSTOMER = gql`
+  query SearchCustomer($query: String!) {
+    customers(first: 1, query: $query) {
+      edges {
+        node {
+          id
+          email
+          firstName
+          lastName
+          acceptsMarketing
+        }
+      }
+      customerUserErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+const CREATE_CUSTOMER = gql`
+  mutation CreateCustomer($input: CustomerInput!) {
+    customerCreate(input: $input) {
+      customer {
+        id
+        email
+        firstName
+        lastName
+        acceptsMarketing
+      }
+      customerUserErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+const UPDATE_CUSTOMER = gql`
+  mutation UpdateCustomer($input: CustomerInput!) {
+    customerUpdate(input: $input) {
+      customer {
+        id
+        email
+        firstName
+        lastName
+        acceptsMarketing
+      }
+      customerUserErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+export async function subscribeToNewsletter(email: string, firstName?: string, lastName?: string): Promise<{ success: boolean; error?: string }> {
+  // During development, just simulate a successful subscription
+  if (import.meta.env.DEV) {
+    console.log('Development mode: Simulating newsletter subscription for:', email);
+    return { success: true };
+  }
+
+  try {
+    const storeUrl = `https://${import.meta.env.VITE_SHOPIFY_STORE_DOMAIN}`;
+    
+    // Search for existing customer
+    const searchResult = await fetch(`${storeUrl}/admin/api/2023-10/customers/search.json?query=email:${encodeURIComponent(email)}`, {
+      headers: {
+        'X-Shopify-Access-Token': import.meta.env.VITE_SHOPIFY_ADMIN_ACCESS_TOKEN || '',
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const searchData = await searchResult.json();
+    const existingCustomer = searchData.customers?.[0];
+
+    if (existingCustomer) {
+      // Update existing customer if they don't accept marketing
+      if (!existingCustomer.accepts_marketing) {
+        const updateResult = await fetch(`${storeUrl}/admin/api/2023-10/customers/${existingCustomer.id}.json`, {
+          method: 'PUT',
+          headers: {
+            'X-Shopify-Access-Token': import.meta.env.VITE_SHOPIFY_ADMIN_ACCESS_TOKEN || '',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            customer: {
+              id: existingCustomer.id,
+              accepts_marketing: true,
+            },
+          }),
+        });
+
+        if (!updateResult.ok) {
+          throw new Error('Failed to update customer marketing preferences');
+        }
+      }
+    } else {
+      // Create new customer
+      const createResult = await fetch(`${storeUrl}/admin/api/2023-10/customers.json`, {
+        method: 'POST',
+        headers: {
+          'X-Shopify-Access-Token': import.meta.env.VITE_SHOPIFY_ADMIN_ACCESS_TOKEN || '',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customer: {
+            email,
+            first_name: firstName,
+            last_name: lastName,
+            accepts_marketing: true,
+          },
+        }),
+      });
+
+      if (!createResult.ok) {
+        throw new Error('Failed to create customer');
+      }
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Newsletter subscription error:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to subscribe to newsletter' 
+    };
+  }
+}

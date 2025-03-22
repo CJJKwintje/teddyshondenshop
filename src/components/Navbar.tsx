@@ -255,7 +255,7 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen }: NavbarProps) {
       </div>
 
       {/* Category Navigation */}
-      <div className="border-t border-gray-100" style={{ backgroundColor: '#47C09A' }}>
+      <div className="border-t border-gray-100 md:bg-[#47C09A]">
         <div className="container mx-auto px-4">
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-8">
@@ -356,7 +356,7 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen }: NavbarProps) {
 
           {/* Mobile Menu */}
           <div 
-            className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
+            className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out bg-white ${
               isMenuOpen ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
             }`}
           >
@@ -382,7 +382,7 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen }: NavbarProps) {
                   >
                     {/* First link group */}
                     {category.link.length > 0 && (
-                      <div className="bg-gray-50 py-2">
+                      <div className="py-2">
                         <h3 className="px-6 py-1 text-sm font-semibold text-gray-900">
                           {category.linkTitle}
                         </h3>
@@ -404,7 +404,7 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen }: NavbarProps) {
 
                     {/* Second link group */}
                     {category.link2 && category.link2.length > 0 && (
-                      <div className="bg-gray-50 py-2">
+                      <div className="py-2">
                         <h3 className="px-6 py-1 text-sm font-semibold text-gray-900">
                           {category.linkTitle2}
                         </h3>
@@ -426,7 +426,7 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen }: NavbarProps) {
 
                     {/* Third link group */}
                     {category.link3 && category.link3.length > 0 && (
-                      <div className="bg-gray-50 py-2">
+                      <div className="py-2">
                         <h3 className="px-6 py-1 text-sm font-semibold text-gray-900">
                           {category.linkTitle3}
                         </h3>

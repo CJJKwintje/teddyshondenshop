@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery } from 'urql';
 import { gql } from 'urql';
 import { Dog, Bone, Cookie, MapPin, Moon, Scissors, Shirt, Loader2 } from 'lucide-react';
@@ -10,6 +10,7 @@ import { getHomepageBanners, getBrands } from '../services/contentful';
 import type { HomepageBanner, Brand } from '../services/contentful';
 import BrandLogos from '../components/BrandLogos';
 import CategorySlider from '../components/CategorySlider';
+import { subscribeToNewsletter } from '../services/shopify';
 
 const PRODUCTS_QUERY = gql`
   query GetProducts {
@@ -143,6 +144,9 @@ const HomePage: React.FC = () => {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [bannersLoading, setBannersLoading] = useState(true);
   const [brandsLoading, setBrandsLoading] = useState(true);
+  const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<{ success?: boolean; error?: string } | null>(null);
 
   useEffect(() => {
     const loadBanners = async () => {
@@ -172,14 +176,33 @@ const HomePage: React.FC = () => {
     loadBrands();
   }, []);
 
-  const getRandomProducts = (products: any[]) => {
+  const randomProducts = useMemo(() => {
+    if (!data?.products?.edges) return [];
+    const products = data.products.edges.map(({ node }: any) => node);
     const shuffled = [...products].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, 4);
-  };
+    return shuffled.slice(0, 8);
+  }, [data?.products?.edges]);
 
-  const randomProducts = data?.products?.edges
-    ? getRandomProducts(data.products.edges.map(({ node }: any) => node))
-    : [];
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitStatus(null);
+
+    try {
+      const result = await subscribeToNewsletter(email);
+      setSubmitStatus(result);
+      if (result.success) {
+        setEmail('');
+      }
+    } catch (error) {
+      setSubmitStatus({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Er is een fout opgetreden' 
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <main className="bg-gray-50">
@@ -281,7 +304,7 @@ const HomePage: React.FC = () => {
             </h2>
             <Link
               to="/producten"
-              className="text-blue-500 hover:text-blue-600 font-medium text-sm md:text-base"
+              className="text-[#63D7B2] hover:text-[#47C09A] font-medium text-sm md:text-base"
             >
               Bekijk alles →
             </Link>
@@ -328,6 +351,42 @@ const HomePage: React.FC = () => {
               })}
             </div>
           )}
+        </section>
+
+        {/* Newsletter Signup */}
+        <section className="bg-[#47C09A] rounded-2xl p-8 md:p-12 mt-16 mb-8">
+          <div className="max-w-3xl mx-auto text-center">
+            <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+              Blijf op de hoogte van de laatste acties!
+            </h2>
+            <p className="text-white/90 mb-6">
+              Ontvang maandelijks de beste aanbiedingen, nieuwe producten en handige tips voor jouw hond
+            </p>
+            <form onSubmit={handleNewsletterSubmit} className="flex flex-col md:flex-row gap-4 max-w-md mx-auto">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Jouw e-mailadres"
+                className="flex-1 px-4 py-3 rounded-full border-2 border-white/20 bg-white/10 text-white placeholder-white/60 focus:outline-none focus:border-white/40"
+                required
+              />
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-8 py-3 bg-white text-[#47C09A] rounded-full font-medium hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Bezig...' : 'Inschrijven'}
+              </button>
+            </form>
+            {submitStatus && (
+              <p className={`mt-4 text-sm ${submitStatus.success ? 'text-white' : 'text-red-200'}`}>
+                {submitStatus.success 
+                  ? 'Bedankt voor je inschrijving! We sturen je binnenkort een bevestigingsmail.' 
+                  : submitStatus.error || 'Er is een fout opgetreden bij het inschrijven.'}
+              </p>
+            )}
+          </div>
         </section>
       </div>
     </main>
