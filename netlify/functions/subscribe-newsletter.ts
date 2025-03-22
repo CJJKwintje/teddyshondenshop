@@ -104,6 +104,7 @@ const handler: Handler = async (event) => {
         id: existingCustomer.id,
         email: existingCustomer.email,
         accepts_marketing: existingCustomer.accepts_marketing,
+        email_marketing_consent: existingCustomer.email_marketing_consent,
         first_name: existingCustomer.first_name,
         last_name: existingCustomer.last_name,
         state: existingCustomer.state,
@@ -112,26 +113,30 @@ const handler: Handler = async (event) => {
     }
 
     if (existingCustomer) {
-      // Update existing customer if they don't accept marketing
-      if (!existingCustomer.accepts_marketing) {
+      // Check if customer needs to be updated based on email_marketing_consent
+      const needsUpdate = !existingCustomer.email_marketing_consent || 
+                         existingCustomer.email_marketing_consent.state === 'unsubscribed';
+      
+      if (needsUpdate) {
         console.log('=== Updating Existing Customer ===');
         console.log('Customer ID:', existingCustomer.id);
-        console.log('Current Marketing Status:', existingCustomer.accepts_marketing);
+        console.log('Current Marketing Status:', existingCustomer.email_marketing_consent?.state);
 
         const updateUrl = `${storeUrl}/admin/api/2023-10/customers/${existingCustomer.id}.json`;
         console.log('Update URL:', updateUrl);
 
-        // Simplified update payload with only necessary fields
         const updatePayload = {
           customer: {
             id: existingCustomer.id,
+            email_marketing_consent: {
+              state: 'subscribed',
+              opt_in_level: 'single_opt_in',
+              consent_updated_at: new Date().toISOString(),
+              consent_collected_from: 'SHOPIFY'
+            },
+            sms_marketing_consent: null,
             accepts_marketing: true,
             accepts_marketing_updated_at: new Date().toISOString(),
-            opt_in_level: 'single_opt_in',
-            consent: 'granted',
-            consent_opt_in_level: 'single_opt_in',
-            consent_opt_in_updated_at: new Date().toISOString(),
-            consent_collected_from: 'SHOPIFY',
           },
         };
         console.log('Update Payload:', JSON.stringify(updatePayload, null, 2));
@@ -169,7 +174,7 @@ const handler: Handler = async (event) => {
         console.log('Status:', verifyResult.status);
         console.log('Verification Data:', JSON.stringify(verifyData, null, 2));
 
-        if (!verifyData.customer?.accepts_marketing) {
+        if (verifyData.customer?.email_marketing_consent?.state !== 'subscribed') {
           throw new Error('Customer marketing preferences were not updated successfully');
         }
       } else {
@@ -188,11 +193,13 @@ const handler: Handler = async (event) => {
           accepts_marketing: true,
           verified_email: true,
           accepts_marketing_updated_at: new Date().toISOString(),
-          opt_in_level: 'single_opt_in',
-          consent: 'granted',
-          consent_opt_in_level: 'single_opt_in',
-          consent_opt_in_updated_at: new Date().toISOString(),
-          consent_collected_from: 'SHOPIFY',
+          email_marketing_consent: {
+            state: 'subscribed',
+            opt_in_level: 'single_opt_in',
+            consent_updated_at: new Date().toISOString(),
+            consent_collected_from: 'SHOPIFY'
+          },
+          sms_marketing_consent: null,
         },
       };
       console.log('Create Payload:', JSON.stringify(createPayload, null, 2));
@@ -218,7 +225,7 @@ const handler: Handler = async (event) => {
       }
 
       // Verify the creation was successful
-      if (!createData.customer?.accepts_marketing) {
+      if (createData.customer?.email_marketing_consent?.state !== 'subscribed') {
         throw new Error('New customer was not created with marketing preferences enabled');
       }
     }
