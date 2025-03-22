@@ -382,7 +382,7 @@ const HomePage: React.FC = () => {
             {submitStatus && (
               <p className={`mt-4 text-sm ${submitStatus.success ? 'text-white' : 'text-red-200'}`}>
                 {submitStatus.success 
-                  ? 'Bedankt voor je inschrijving! We sturen je binnenkort een bevestigingsmail.' 
+                  ? 'Bedankt voor je inschrijving!' 
                   : submitStatus.error || 'Er is een fout opgetreden bij het inschrijven.'}
               </p>
             )}
