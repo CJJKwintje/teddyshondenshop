@@ -1,11 +1,13 @@
 import { Handler } from '@netlify/functions';
 
 const handler: Handler = async (event) => {
+  console.log('=== Newsletter Subscription Start ===');
   console.log('Function called with method:', event.httpMethod);
   console.log('Request body:', event.body);
 
   // Handle CORS preflight requests
   if (event.httpMethod === 'OPTIONS') {
+    console.log('Handling OPTIONS request');
     return {
       statusCode: 204,
       headers: {
@@ -18,6 +20,7 @@ const handler: Handler = async (event) => {
   }
 
   if (event.httpMethod !== 'POST') {
+    console.log('Invalid method:', event.httpMethod);
     return {
       statusCode: 405,
       body: 'Method Not Allowed',
@@ -32,9 +35,13 @@ const handler: Handler = async (event) => {
 
   try {
     const { email, firstName, lastName } = JSON.parse(event.body || '{}');
-    console.log('Parsed request data:', { email, firstName, lastName });
+    console.log('=== Request Data ===');
+    console.log('Email:', email);
+    console.log('First Name:', firstName);
+    console.log('Last Name:', lastName);
 
     if (!email) {
+      console.log('Error: Email is required');
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'Email is required' }),
@@ -50,143 +57,163 @@ const handler: Handler = async (event) => {
     const storeDomain = process.env.VITE_SHOPIFY_STORE_DOMAIN;
     const adminToken = process.env.VITE_SHOPIFY_ADMIN_ACCESS_TOKEN;
 
-    console.log('Environment variables:', {
-      hasStoreDomain: !!storeDomain,
-      hasAdminToken: !!adminToken
-    });
+    console.log('=== Environment Variables ===');
+    console.log('Store Domain:', storeDomain);
+    console.log('Admin Token Present:', !!adminToken);
 
     if (!storeDomain) {
+      console.log('Error: VITE_SHOPIFY_STORE_DOMAIN is not set');
       throw new Error('VITE_SHOPIFY_STORE_DOMAIN environment variable is not set');
     }
 
     if (!adminToken) {
+      console.log('Error: VITE_SHOPIFY_ADMIN_ACCESS_TOKEN is not set');
       throw new Error('VITE_SHOPIFY_ADMIN_ACCESS_TOKEN environment variable is not set');
     }
 
     const storeUrl = `https://${storeDomain}`;
-    console.log('Making search request to:', `${storeUrl}/admin/api/2023-10/customers/search.json`);
+    const searchUrl = `${storeUrl}/admin/api/2023-10/customers/search.json?query=email:${encodeURIComponent(email)}`;
+    console.log('=== Search Request ===');
+    console.log('Search URL:', searchUrl);
 
     // Search for existing customer
-    const searchResult = await fetch(
-      `${storeUrl}/admin/api/2023-10/customers/search.json?query=email:${encodeURIComponent(email)}`,
-      {
-        headers: {
-          'X-Shopify-Access-Token': adminToken,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const searchResult = await fetch(searchUrl, {
+      headers: {
+        'X-Shopify-Access-Token': adminToken,
+        'Content-Type': 'application/json',
+      },
+    });
 
-    console.log('Search response status:', searchResult.status);
+    console.log('=== Search Response ===');
+    console.log('Status:', searchResult.status);
+    console.log('Status Text:', searchResult.statusText);
     const searchData = await searchResult.json();
-    console.log('Raw search response:', searchData);
+    console.log('Search Response Data:', JSON.stringify(searchData, null, 2));
 
     if (!searchResult.ok) {
+      console.log('Error: Search request failed');
       throw new Error(`Failed to search for customer: ${JSON.stringify(searchData)}`);
     }
 
     const existingCustomer = searchData.customers?.[0];
 
-    console.log('Search result:', {
-      found: !!existingCustomer,
-      customer: existingCustomer ? {
+    console.log('=== Customer Search Result ===');
+    console.log('Customer Found:', !!existingCustomer);
+    if (existingCustomer) {
+      console.log('Customer Details:', {
         id: existingCustomer.id,
         email: existingCustomer.email,
-        accepts_marketing: existingCustomer.accepts_marketing
-      } : null
-    });
+        accepts_marketing: existingCustomer.accepts_marketing,
+        first_name: existingCustomer.first_name,
+        last_name: existingCustomer.last_name,
+        state: existingCustomer.state,
+        tags: existingCustomer.tags,
+      });
+    }
 
     if (existingCustomer) {
       // Update existing customer if they don't accept marketing
       if (!existingCustomer.accepts_marketing) {
-        console.log('Updating existing customer marketing preferences...');
-        const updateResult = await fetch(
-          `${storeUrl}/admin/api/2023-10/customers/${existingCustomer.id}.json`,
-          {
-            method: 'PUT',
-            headers: {
-              'X-Shopify-Access-Token': adminToken,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              customer: {
-                id: existingCustomer.id,
-                accepts_marketing: true,
-                email: existingCustomer.email,
-                first_name: existingCustomer.first_name,
-                last_name: existingCustomer.last_name,
-                state: existingCustomer.state,
-                tags: existingCustomer.tags,
-                note: existingCustomer.note,
-                tax_exempt: existingCustomer.tax_exempt,
-                tax_exemptions: existingCustomer.tax_exemptions,
-                currency: existingCustomer.currency,
-                phone: existingCustomer.phone,
-                addresses: existingCustomer.addresses,
-                default_address: existingCustomer.default_address,
-                accepts_marketing_updated_at: new Date().toISOString(),
-                sms_marketing_consent: existingCustomer.sms_marketing_consent,
-                opt_in_level: existingCustomer.opt_in_level,
-                consent: existingCustomer.consent,
-                consent_opt_in_level: existingCustomer.consent_opt_in_level,
-                consent_opt_in_updated_at: existingCustomer.consent_opt_in_updated_at,
-                consent_collected_from: existingCustomer.consent_collected_from,
-              },
-            }),
-          }
-        );
+        console.log('=== Updating Existing Customer ===');
+        console.log('Customer ID:', existingCustomer.id);
+        console.log('Current Marketing Status:', existingCustomer.accepts_marketing);
 
-        const updateData = await updateResult.json();
-        console.log('Update result:', {
-          success: updateResult.ok,
-          status: updateResult.status,
-          data: updateData
+        const updateUrl = `${storeUrl}/admin/api/2023-10/customers/${existingCustomer.id}.json`;
+        console.log('Update URL:', updateUrl);
+
+        const updatePayload = {
+          customer: {
+            id: existingCustomer.id,
+            accepts_marketing: true,
+            email: existingCustomer.email,
+            first_name: existingCustomer.first_name,
+            last_name: existingCustomer.last_name,
+            state: existingCustomer.state,
+            tags: existingCustomer.tags,
+            note: existingCustomer.note,
+            tax_exempt: existingCustomer.tax_exempt,
+            tax_exemptions: existingCustomer.tax_exemptions,
+            currency: existingCustomer.currency,
+            phone: existingCustomer.phone,
+            addresses: existingCustomer.addresses,
+            default_address: existingCustomer.default_address,
+            accepts_marketing_updated_at: new Date().toISOString(),
+            sms_marketing_consent: existingCustomer.sms_marketing_consent,
+            opt_in_level: existingCustomer.opt_in_level,
+            consent: existingCustomer.consent,
+            consent_opt_in_level: existingCustomer.consent_opt_in_level,
+            consent_opt_in_updated_at: existingCustomer.consent_opt_in_updated_at,
+            consent_collected_from: existingCustomer.consent_collected_from,
+          },
+        };
+        console.log('Update Payload:', JSON.stringify(updatePayload, null, 2));
+
+        const updateResult = await fetch(updateUrl, {
+          method: 'PUT',
+          headers: {
+            'X-Shopify-Access-Token': adminToken,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updatePayload),
         });
 
+        console.log('=== Update Response ===');
+        console.log('Status:', updateResult.status);
+        console.log('Status Text:', updateResult.statusText);
+        const updateData = await updateResult.json();
+        console.log('Update Response Data:', JSON.stringify(updateData, null, 2));
+
         if (!updateResult.ok) {
+          console.log('Error: Update request failed');
           throw new Error(`Failed to update customer marketing preferences: ${JSON.stringify(updateData)}`);
         }
       } else {
         console.log('Customer already accepts marketing');
       }
     } else {
-      console.log('Creating new customer...');
-      // Create new customer
-      const createResult = await fetch(`${storeUrl}/admin/api/2023-10/customers.json`, {
+      console.log('=== Creating New Customer ===');
+      const createUrl = `${storeUrl}/admin/api/2023-10/customers.json`;
+      console.log('Create URL:', createUrl);
+
+      const createPayload = {
+        customer: {
+          email,
+          first_name: firstName,
+          last_name: lastName,
+          accepts_marketing: true,
+          verified_email: true,
+          accepts_marketing_updated_at: new Date().toISOString(),
+          opt_in_level: 'single_opt_in',
+          consent: 'granted',
+          consent_opt_in_level: 'single_opt_in',
+          consent_opt_in_updated_at: new Date().toISOString(),
+          consent_collected_from: 'SHOPIFY',
+        },
+      };
+      console.log('Create Payload:', JSON.stringify(createPayload, null, 2));
+
+      const createResult = await fetch(createUrl, {
         method: 'POST',
         headers: {
           'X-Shopify-Access-Token': adminToken,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          customer: {
-            email,
-            first_name: firstName,
-            last_name: lastName,
-            accepts_marketing: true,
-            verified_email: true,
-            accepts_marketing_updated_at: new Date().toISOString(),
-            opt_in_level: 'single_opt_in',
-            consent: 'granted',
-            consent_opt_in_level: 'single_opt_in',
-            consent_opt_in_updated_at: new Date().toISOString(),
-            consent_collected_from: 'SHOPIFY',
-          },
-        }),
+        body: JSON.stringify(createPayload),
       });
 
+      console.log('=== Create Response ===');
+      console.log('Status:', createResult.status);
+      console.log('Status Text:', createResult.statusText);
       const createData = await createResult.json();
-      console.log('Create result:', {
-        success: createResult.ok,
-        status: createResult.status,
-        data: createData
-      });
+      console.log('Create Response Data:', JSON.stringify(createData, null, 2));
 
       if (!createResult.ok) {
+        console.log('Error: Create request failed');
         throw new Error(`Failed to create customer: ${JSON.stringify(createData)}`);
       }
     }
 
+    console.log('=== Newsletter Subscription Success ===');
     return {
       statusCode: 200,
       body: JSON.stringify({ success: true }),
@@ -198,7 +225,8 @@ const handler: Handler = async (event) => {
       },
     };
   } catch (error) {
-    console.error('Newsletter subscription error:', error);
+    console.log('=== Newsletter Subscription Error ===');
+    console.error('Error details:', error);
     return {
       statusCode: 500,
       body: JSON.stringify({
