@@ -63,7 +63,7 @@ const CartPage: React.FC = () => {
         </p>
         <Link
           to="/"
-          className="inline-flex items-center text-blue-500 hover:text-blue-600"
+          className="inline-flex items-center text-[#63D7B2] hover:text-[#47C09A]"
         >
           <ArrowLeft className="mr-2" size={20} />
           Terug naar de winkel

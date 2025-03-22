@@ -14,6 +14,7 @@ import Pagination from '../components/Pagination';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { formatPrice } from '../utils/formatPrice';
 import ActiveFilterTags from '../components/ActiveFilterTags';
+import { trackPageView, trackFilterUse, trackPaginationClick, trackProductListView } from '../utils/analytics';
 
 const PRODUCTS_PER_PAGE = 25;
 
@@ -114,6 +115,7 @@ interface CategoryPage {
     seoTitle?: string;
     seoDescription?: string;
     productType?: string[];
+    keywords?: string[];
   };
 }
 
@@ -125,6 +127,7 @@ interface PageData {
     seoTitle?: string;
     seoDescription?: string;
     productType?: string[];
+    keywords?: string[];
   };
 }
 
@@ -135,6 +138,18 @@ interface ProductNode {
 
 interface ProductEdge {
   node: ProductNode;
+}
+
+interface ProcessedProduct {
+  id: string;
+  title: string;
+  productType: string;
+  vendor: string;
+  priceRange: {
+    minVariantPrice: {
+      amount: string;
+    };
+  };
 }
 
 export default function SubCategoryPage() {
@@ -206,19 +221,32 @@ export default function SubCategoryPage() {
     // Log query building method
     console.group('🔍 Building Product Query');
     
-    // Get the first word of the subcategory title for search
-    const searchTerm = pageData.fields.title?.split(' ')[0] || '';
-    
     // Check if we have product types defined in Contentful
     if (pageData.fields.productType && pageData.fields.productType.length > 0) {
-      const productTypeQuery = pageData.fields.productType
+      let productTypeQuery = pageData.fields.productType
         .map(type => `(product_type:${type})`)
         .join(' OR ');
       
-      console.log('Using Contentful Product Types:', {
-        types: pageData.fields.productType,
-        query: productTypeQuery
-      });
+      // Add keywords filter if available
+      if (pageData.fields.keywords && pageData.fields.keywords.length > 0) {
+        const keywordQuery = pageData.fields.keywords
+          .map(keyword => `title:*${keyword}*`)
+          .join(' OR ');
+        
+        productTypeQuery = `(${productTypeQuery}) AND (${keywordQuery})`;
+        
+        console.log('Using Contentful Product Types and Keywords:', {
+          types: pageData.fields.productType,
+          keywords: pageData.fields.keywords,
+          query: productTypeQuery
+        });
+      } else {
+        console.log('Using Contentful Product Types:', {
+          types: pageData.fields.productType,
+          query: productTypeQuery
+        });
+      }
+      
       console.groupEnd();
       return productTypeQuery;
     }
@@ -228,26 +256,40 @@ export default function SubCategoryPage() {
     
     // Build query combining search term with parent category product types
     if (parentCategory.length > 0) {
-      const productTypeQuery = parentCategory
-        .map(type => `(product_type:${type} AND title:${searchTerm}*)`)
+      let productTypeQuery = parentCategory
+        .map(type => `(product_type:${type})`)
         .join(' OR ');
 
-      console.log('Using Fallback Search with Parent Category Types:', {
-        searchTerm,
-        parentTypes: parentCategory,
-        query: productTypeQuery
-      });
+      // Add keywords filter if available
+      if (pageData.fields.keywords && pageData.fields.keywords.length > 0) {
+        const keywordQuery = pageData.fields.keywords
+          .map(keyword => `title:*${keyword}*`)
+          .join(' OR ');
+        
+        productTypeQuery = `(${productTypeQuery}) AND (${keywordQuery})`;
+
+        console.log('Using Fallback Search with Parent Category Types and Keywords:', {
+          parentTypes: parentCategory,
+          keywords: pageData.fields.keywords,
+          query: productTypeQuery
+        });
+      } else {
+        console.log('Using Fallback Search with Parent Category Types:', {
+          parentTypes: parentCategory,
+          query: productTypeQuery
+        });
+      }
+      
       console.groupEnd();
       return productTypeQuery;
     }
 
     // Ultimate fallback: just search by title
     console.log('Using Title-Only Search:', {
-      searchTerm,
       warning: 'No product types available'
     });
     console.groupEnd();
-    return `title:${searchTerm}*`;
+    return '';
   }, [pageData, currentCategory]);
 
   // Build filter query string based on selected filters
@@ -378,6 +420,34 @@ export default function SubCategoryPage() {
   const products = processProducts();
   const pageInfo = productsResult.data?.products?.pageInfo;
 
+  // Add page view tracking
+  React.useEffect(() => {
+    if (pageData && !isLoading) {
+      trackPageView({
+        pageType: 'subcategory',
+        category,
+        subcategory,
+        title: pageData.fields.title
+      });
+    }
+  }, [pageData, isLoading, category, subcategory]);
+
+  // Add product list view tracking
+  React.useEffect(() => {
+    if (products.length > 0) {
+      trackProductListView(
+        products.map((product: ProcessedProduct) => ({
+          id: product.id,
+          title: product.title,
+          price: parseFloat(product.priceRange.minVariantPrice.amount),
+          brand: product.vendor,
+          category: product.productType
+        })),
+        `${category}/${subcategory}`
+      );
+    }
+  }, [products, category, subcategory]);
+
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
     // Scroll to top of the page smoothly
@@ -385,7 +455,10 @@ export default function SubCategoryPage() {
       top: 0,
       behavior: 'smooth'
     });
-  }, []);
+
+    // Track pagination click
+    trackPaginationClick(page, { category, subcategory });
+  }, [category, subcategory]);
 
   const handleFilterChange = (type: 'price' | 'brand' | 'type', value: string) => {
     setCurrentPage(1);
@@ -399,6 +472,11 @@ export default function SubCategoryPage() {
       setSelectedBrands(prev =>
         prev.includes(value) ? prev.filter(brand => brand !== value) : [...prev, value]
       );
+    }
+
+    // Track filter usage
+    if (type !== 'type') {
+      trackFilterUse(type, value, { category, subcategory });
     }
   };
 
@@ -606,13 +684,13 @@ export default function SubCategoryPage() {
             )}
 
             {/* Description Section */}
-            {pageData.fields.description && (
+            {pageData.fields.seoDescription && (
               <div className="mt-16 bg-white rounded-xl p-8 shadow-sm">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  {pageData.fields.title}
+                  {pageData.fields.seoTitle || pageData.fields.title}
                 </h2>
                 <div className="prose prose-blue max-w-none">
-                  <p className="text-gray-600">{pageData.fields.description}</p>
+                  <p className="text-gray-600">{pageData.fields.seoDescription}</p>
                 </div>
               </div>
             )}

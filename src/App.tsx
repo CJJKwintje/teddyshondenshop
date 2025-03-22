@@ -25,11 +25,41 @@ import ScrollToTop from './components/ScrollToTop';
 import SubCategoryPage from './pages/SubCategoryPage';
 import CookieBanner from './components/CookieBanner';
 import { CookieProvider } from './context/CookieContext';
-import ResetPasswordPage from './pages/ResetPasswordPage';
+import { GoogleTagManagerScript, GoogleTagManagerNoScript } from './components/GoogleTagManager';
+import { usePageTracking } from './hooks/usePageTracking';
+
+// Create a separate component for the routes that needs access to router hooks
+function AppContent() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  usePageTracking();
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navbar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/search" element={<SearchPage />} />
+        <Route path="/producten" element={<ProductsPage />} />
+        <Route path="/product/:id" element={<ProductPage />} />
+        <Route path="/categorie/:category" element={<CategoryPage />} />
+        <Route path="/categorie/:category/:subcategory" element={<SubCategoryPage />} />
+        <Route path="/chat" element={<ChatbotPage />} />
+        <Route path="/account/*" element={<AccountPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/account/reset/:customerId/:resetToken" element={<AccountPage />} />
+        <Route path="/:slug" element={<ContentPage />} />
+      </Routes>
+      <CartPreview />
+      <Footer />
+      <CookieBanner />
+    </div>
+  );
+}
 
 function App() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
   return (
     <HelmetProvider>
       <ErrorBoundary>
@@ -38,31 +68,10 @@ function App() {
             <BrowserRouter>
               <CartProvider>
                 <CookieProvider>
+                  <GoogleTagManagerScript />
+                  <GoogleTagManagerNoScript />
                   <ScrollToTop />
-                  <div className="min-h-screen bg-gray-50">
-                    <Navbar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
-
-                    <Routes>
-                      <Route path="/" element={<HomePage />} />
-                      <Route path="/cart" element={<CartPage />} />
-                      <Route path="/search" element={<SearchPage />} />
-                      <Route path="/producten" element={<ProductsPage />} />
-                      <Route path="/product/:id" element={<ProductPage />} />
-                      <Route path="/categorie/:category" element={<CategoryPage />} />
-                      <Route path="/categorie/:category/:subcategory" element={<SubCategoryPage />} />
-                      <Route path="/chat" element={<ChatbotPage />} />
-                      <Route path="/account/*" element={<AccountPage />} />
-                      <Route path="/login" element={<LoginPage />} />
-                      <Route path="/register" element={<RegisterPage />} />
-                      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                      <Route path="/account/reset/:customerId/:resetToken" element={<ResetPasswordPage />} />
-                      <Route path="/:slug" element={<ContentPage />} />
-                    </Routes>
-
-                    <CartPreview />
-                    <Footer />
-                    <CookieBanner />
-                  </div>
+                  <AppContent />
                 </CookieProvider>
               </CartProvider>
             </BrowserRouter>

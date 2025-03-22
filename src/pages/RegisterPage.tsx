@@ -28,7 +28,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center pt-20 sm:pt-24 sm:px-6 lg:px-8">
       <SEO
         title="Account aanmaken"
         description="Maak een account aan om je bestellingen te bekijken en je gegevens te beheren."

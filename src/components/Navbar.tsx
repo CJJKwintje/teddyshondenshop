@@ -223,7 +223,13 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen }: NavbarProps) {
 
             <Link
               to="/account"
-              className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+              className={`p-2 transition-colors ${
+                location.pathname.startsWith('/account') || 
+                location.pathname === '/login' || 
+                location.pathname === '/register'
+                  ? 'text-[#63D7B2]' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
               aria-label="My Account"
             >
               <User size={24} />
@@ -234,7 +240,10 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen }: NavbarProps) {
               className="relative p-2 text-gray-600"
               aria-label="Shopping cart"
             >
-              <ShoppingCart size={24} className={location.pathname === '/cart' ? 'text-blue-500' : ''} />
+              <ShoppingCart 
+                size={24} 
+                className={location.pathname === '/cart' ? 'text-[#63D7B2]' : ''} 
+              />
               {totalItems > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                   {totalItems}
