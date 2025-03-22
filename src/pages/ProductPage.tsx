@@ -434,12 +434,12 @@ export default function ProductPage() {
             <BenefitItem
               icon={Truck}
               title="Gratis Verzending"
-              description="Gratis verzending vanaf €50"
+              description="Gratis verzending vanaf €59"
             />
             <BenefitItem
               icon={Timer}
               title="Snelle bezorging"
-              description="Voor 17:30 besteld, dezelfde dag verzonden"
+              description="Op werkdagen voor 17:30 besteld, dezelfde dag verzonden"
             />
             <BenefitItem
               icon={MessageCircleHeart}
@@ -646,7 +646,7 @@ export default function ProductPage() {
                 <BenefitItem
                   icon={Timer}
                   title="Snelle bezorging"
-                  description="Voor 17:30 besteld, dezelfde dag verzonden"
+                  description="Op werkdagen voor 17:30 besteld, dezelfde dag verzonden"
                 />
                 <BenefitItem
                   icon={MessageCircleHeart}
