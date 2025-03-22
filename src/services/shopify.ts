@@ -306,70 +306,18 @@ export async function subscribeToNewsletter(email: string, firstName?: string, l
   }
 
   try {
-    const storeDomain = import.meta.env.VITE_SHOPIFY_STORE_DOMAIN;
-    if (!storeDomain) {
-      throw new Error('Shopify store domain is not configured');
-    }
-    
-    const storeUrl = `https://${storeDomain}`;
-    const adminToken = import.meta.env.VITE_SHOPIFY_ADMIN_ACCESS_TOKEN;
-    if (!adminToken) {
-      throw new Error('Shopify admin access token is not configured');
-    }
-    
-    // Search for existing customer
-    const searchResult = await fetch(`${storeUrl}/admin/api/2023-10/customers/search.json?query=email:${encodeURIComponent(email)}`, {
+    const response = await fetch('/.netlify/functions/subscribe-newsletter', {
+      method: 'POST',
       headers: {
-        'X-Shopify-Access-Token': adminToken,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ email, firstName, lastName }),
     });
 
-    const searchData = await searchResult.json();
-    const existingCustomer = searchData.customers?.[0];
+    const data = await response.json();
 
-    if (existingCustomer) {
-      // Update existing customer if they don't accept marketing
-      if (!existingCustomer.accepts_marketing) {
-        const updateResult = await fetch(`${storeUrl}/admin/api/2023-10/customers/${existingCustomer.id}.json`, {
-          method: 'PUT',
-          headers: {
-            'X-Shopify-Access-Token': adminToken,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            customer: {
-              id: existingCustomer.id,
-              accepts_marketing: true,
-            },
-          }),
-        });
-
-        if (!updateResult.ok) {
-          throw new Error('Failed to update customer marketing preferences');
-        }
-      }
-    } else {
-      // Create new customer
-      const createResult = await fetch(`${storeUrl}/admin/api/2023-10/customers.json`, {
-        method: 'POST',
-        headers: {
-          'X-Shopify-Access-Token': adminToken,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          customer: {
-            email,
-            first_name: firstName,
-            last_name: lastName,
-            accepts_marketing: true,
-          },
-        }),
-      });
-
-      if (!createResult.ok) {
-        throw new Error('Failed to create customer');
-      }
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to subscribe to newsletter');
     }
 
     return { success: true };
