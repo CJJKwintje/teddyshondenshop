@@ -39,9 +39,19 @@ const handler: Handler = async (event) => {
     const searchData = await searchResult.json();
     const existingCustomer = searchData.customers?.[0];
 
+    console.log('Search result:', {
+      found: !!existingCustomer,
+      customer: existingCustomer ? {
+        id: existingCustomer.id,
+        email: existingCustomer.email,
+        accepts_marketing: existingCustomer.accepts_marketing
+      } : null
+    });
+
     if (existingCustomer) {
       // Update existing customer if they don't accept marketing
       if (!existingCustomer.accepts_marketing) {
+        console.log('Updating existing customer marketing preferences...');
         const updateResult = await fetch(
           `${storeUrl}/admin/api/2023-10/customers/${existingCustomer.id}.json`,
           {
@@ -59,11 +69,21 @@ const handler: Handler = async (event) => {
           }
         );
 
+        const updateData = await updateResult.json();
+        console.log('Update result:', {
+          success: updateResult.ok,
+          status: updateResult.status,
+          data: updateData
+        });
+
         if (!updateResult.ok) {
-          throw new Error('Failed to update customer marketing preferences');
+          throw new Error(`Failed to update customer marketing preferences: ${JSON.stringify(updateData)}`);
         }
+      } else {
+        console.log('Customer already accepts marketing');
       }
     } else {
+      console.log('Creating new customer...');
       // Create new customer
       const createResult = await fetch(`${storeUrl}/admin/api/2023-10/customers.json`, {
         method: 'POST',
@@ -81,8 +101,15 @@ const handler: Handler = async (event) => {
         }),
       });
 
+      const createData = await createResult.json();
+      console.log('Create result:', {
+        success: createResult.ok,
+        status: createResult.status,
+        data: createData
+      });
+
       if (!createResult.ok) {
-        throw new Error('Failed to create customer');
+        throw new Error(`Failed to create customer: ${JSON.stringify(createData)}`);
       }
     }
 
