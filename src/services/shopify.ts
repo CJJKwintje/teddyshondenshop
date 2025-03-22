@@ -299,13 +299,8 @@ const UPDATE_CUSTOMER = gql`
 `;
 
 export async function subscribeToNewsletter(email: string, firstName?: string, lastName?: string): Promise<{ success: boolean; error?: string }> {
-  // During development, just simulate a successful subscription
-  if (import.meta.env.DEV) {
-    console.log('Development mode: Simulating newsletter subscription for:', email);
-    return { success: true };
-  }
-
   try {
+    console.log('Making newsletter subscription request for:', email);
     const response = await fetch('/.netlify/functions/subscribe-newsletter', {
       method: 'POST',
       headers: {
@@ -314,7 +309,9 @@ export async function subscribeToNewsletter(email: string, firstName?: string, l
       body: JSON.stringify({ email, firstName, lastName }),
     });
 
+    console.log('Response status:', response.status);
     const data = await response.json();
+    console.log('Response data:', data);
 
     if (!response.ok) {
       throw new Error(data.error || 'Failed to subscribe to newsletter');

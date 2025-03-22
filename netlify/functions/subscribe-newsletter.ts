@@ -78,8 +78,13 @@ const handler: Handler = async (event) => {
     );
 
     console.log('Search response status:', searchResult.status);
-
     const searchData = await searchResult.json();
+    console.log('Raw search response:', searchData);
+
+    if (!searchResult.ok) {
+      throw new Error(`Failed to search for customer: ${JSON.stringify(searchData)}`);
+    }
+
     const existingCustomer = searchData.customers?.[0];
 
     console.log('Search result:', {
@@ -107,6 +112,9 @@ const handler: Handler = async (event) => {
               customer: {
                 id: existingCustomer.id,
                 accepts_marketing: true,
+                email: existingCustomer.email, // Include email to prevent it from being cleared
+                first_name: existingCustomer.first_name,
+                last_name: existingCustomer.last_name,
               },
             }),
           }
@@ -140,6 +148,7 @@ const handler: Handler = async (event) => {
             first_name: firstName,
             last_name: lastName,
             accepts_marketing: true,
+            verified_email: true, // Add this to prevent email verification requirement
           },
         }),
       });
