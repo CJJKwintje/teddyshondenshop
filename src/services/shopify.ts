@@ -306,12 +306,21 @@ export async function subscribeToNewsletter(email: string, firstName?: string, l
   }
 
   try {
-    const storeUrl = `https://${import.meta.env.VITE_SHOPIFY_STORE_DOMAIN}`;
+    const storeDomain = import.meta.env.VITE_SHOPIFY_STORE_DOMAIN;
+    if (!storeDomain) {
+      throw new Error('Shopify store domain is not configured');
+    }
+    
+    const storeUrl = `https://${storeDomain}`;
+    const adminToken = import.meta.env.VITE_SHOPIFY_ADMIN_ACCESS_TOKEN;
+    if (!adminToken) {
+      throw new Error('Shopify admin access token is not configured');
+    }
     
     // Search for existing customer
     const searchResult = await fetch(`${storeUrl}/admin/api/2023-10/customers/search.json?query=email:${encodeURIComponent(email)}`, {
       headers: {
-        'X-Shopify-Access-Token': import.meta.env.VITE_SHOPIFY_ADMIN_ACCESS_TOKEN || '',
+        'X-Shopify-Access-Token': adminToken,
         'Content-Type': 'application/json',
       },
     });
@@ -325,7 +334,7 @@ export async function subscribeToNewsletter(email: string, firstName?: string, l
         const updateResult = await fetch(`${storeUrl}/admin/api/2023-10/customers/${existingCustomer.id}.json`, {
           method: 'PUT',
           headers: {
-            'X-Shopify-Access-Token': import.meta.env.VITE_SHOPIFY_ADMIN_ACCESS_TOKEN || '',
+            'X-Shopify-Access-Token': adminToken,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -345,7 +354,7 @@ export async function subscribeToNewsletter(email: string, firstName?: string, l
       const createResult = await fetch(`${storeUrl}/admin/api/2023-10/customers.json`, {
         method: 'POST',
         headers: {
-          'X-Shopify-Access-Token': import.meta.env.VITE_SHOPIFY_ADMIN_ACCESS_TOKEN || '',
+          'X-Shopify-Access-Token': adminToken,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
