@@ -121,29 +121,17 @@ const handler: Handler = async (event) => {
         const updateUrl = `${storeUrl}/admin/api/2023-10/customers/${existingCustomer.id}.json`;
         console.log('Update URL:', updateUrl);
 
+        // Simplified update payload with only necessary fields
         const updatePayload = {
           customer: {
             id: existingCustomer.id,
             accepts_marketing: true,
-            email: existingCustomer.email,
-            first_name: existingCustomer.first_name,
-            last_name: existingCustomer.last_name,
-            state: existingCustomer.state,
-            tags: existingCustomer.tags,
-            note: existingCustomer.note,
-            tax_exempt: existingCustomer.tax_exempt,
-            tax_exemptions: existingCustomer.tax_exemptions,
-            currency: existingCustomer.currency,
-            phone: existingCustomer.phone,
-            addresses: existingCustomer.addresses,
-            default_address: existingCustomer.default_address,
             accepts_marketing_updated_at: new Date().toISOString(),
-            sms_marketing_consent: existingCustomer.sms_marketing_consent,
-            opt_in_level: existingCustomer.opt_in_level,
-            consent: existingCustomer.consent,
-            consent_opt_in_level: existingCustomer.consent_opt_in_level,
-            consent_opt_in_updated_at: existingCustomer.consent_opt_in_updated_at,
-            consent_collected_from: existingCustomer.consent_collected_from,
+            opt_in_level: 'single_opt_in',
+            consent: 'granted',
+            consent_opt_in_level: 'single_opt_in',
+            consent_opt_in_updated_at: new Date().toISOString(),
+            consent_collected_from: 'SHOPIFY',
           },
         };
         console.log('Update Payload:', JSON.stringify(updatePayload, null, 2));
@@ -166,6 +154,23 @@ const handler: Handler = async (event) => {
         if (!updateResult.ok) {
           console.log('Error: Update request failed');
           throw new Error(`Failed to update customer marketing preferences: ${JSON.stringify(updateData)}`);
+        }
+
+        // Verify the update was successful
+        const verifyResult = await fetch(updateUrl, {
+          headers: {
+            'X-Shopify-Access-Token': adminToken,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const verifyData = await verifyResult.json();
+        console.log('=== Verification Response ===');
+        console.log('Status:', verifyResult.status);
+        console.log('Verification Data:', JSON.stringify(verifyData, null, 2));
+
+        if (!verifyData.customer?.accepts_marketing) {
+          throw new Error('Customer marketing preferences were not updated successfully');
         }
       } else {
         console.log('Customer already accepts marketing');
@@ -210,6 +215,11 @@ const handler: Handler = async (event) => {
       if (!createResult.ok) {
         console.log('Error: Create request failed');
         throw new Error(`Failed to create customer: ${JSON.stringify(createData)}`);
+      }
+
+      // Verify the creation was successful
+      if (!createData.customer?.accepts_marketing) {
+        throw new Error('New customer was not created with marketing preferences enabled');
       }
     }
 

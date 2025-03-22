@@ -300,7 +300,11 @@ const UPDATE_CUSTOMER = gql`
 
 export async function subscribeToNewsletter(email: string, firstName?: string, lastName?: string): Promise<{ success: boolean; error?: string }> {
   try {
-    console.log('Making newsletter subscription request for:', email);
+    console.log('=== Newsletter Subscription Request ===');
+    console.log('Email:', email);
+    console.log('First Name:', firstName);
+    console.log('Last Name:', lastName);
+
     const response = await fetch('/.netlify/functions/subscribe-newsletter', {
       method: 'POST',
       headers: {
@@ -309,17 +313,23 @@ export async function subscribeToNewsletter(email: string, firstName?: string, l
       body: JSON.stringify({ email, firstName, lastName }),
     });
 
-    console.log('Response status:', response.status);
+    console.log('=== Newsletter Subscription Response ===');
+    console.log('Status:', response.status);
+    console.log('Status Text:', response.statusText);
+    console.log('Headers:', Object.fromEntries(response.headers.entries()));
+    
     const data = await response.json();
-    console.log('Response data:', data);
+    console.log('Response Data:', data);
 
     if (!response.ok) {
+      console.error('Subscription failed:', data.error);
       throw new Error(data.error || 'Failed to subscribe to newsletter');
     }
 
     return { success: true };
   } catch (error) {
-    console.error('Newsletter subscription error:', error);
+    console.error('=== Newsletter Subscription Error ===');
+    console.error('Error details:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to subscribe to newsletter' 
