@@ -12,11 +12,15 @@ const handler: Handler = async (event) => {
       return { statusCode: 400, body: JSON.stringify({ error: 'Email is required' }) };
     }
 
-    const storeDomain = process.env.SHOPIFY_STORE_DOMAIN;
-    const adminToken = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
+    const storeDomain = process.env.VITE_SHOPIFY_STORE_DOMAIN;
+    const adminToken = process.env.VITE_SHOPIFY_ADMIN_ACCESS_TOKEN;
 
-    if (!storeDomain || !adminToken) {
-      throw new Error('Missing Shopify configuration');
+    if (!storeDomain) {
+      throw new Error('VITE_SHOPIFY_STORE_DOMAIN environment variable is not set');
+    }
+
+    if (!adminToken) {
+      throw new Error('VITE_SHOPIFY_ADMIN_ACCESS_TOKEN environment variable is not set');
     }
 
     const storeUrl = `https://${storeDomain}`;
