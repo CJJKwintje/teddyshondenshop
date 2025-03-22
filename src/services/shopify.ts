@@ -298,6 +298,44 @@ const UPDATE_CUSTOMER = gql`
   }
 `;
 
+// Add these validation functions at the top of the file
+const validateEmail = (email: string): boolean => {
+  // Basic email format validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return false;
+  }
+
+  // Check length (max 254 characters is standard email length limit)
+  if (email.length > 254) {
+    return false;
+  }
+
+  // Check for common disposable email domains
+  const disposableDomains = [
+    'tempmail.com', 'throwawaymail.com', 'mailinator.com', 'tempmail.net',
+    'disposablemail.com', 'tempmailaddress.com', 'tempmail.ninja', 'tempmail.plus',
+    'tempmail.website', 'tempmail.ws', 'tempmail.xyz', 'tempmail.org',
+    'tempmail.net', 'tempmail.com', 'tempmail.co', 'tempmail.cc'
+  ];
+  
+  const domain = email.split('@')[1].toLowerCase();
+  if (disposableDomains.includes(domain)) {
+    return false;
+  }
+
+  return true;
+};
+
+const sanitizeInput = (input: string): string => {
+  // Remove any HTML tags
+  const withoutHtml = input.replace(/<[^>]*>/g, '');
+  // Remove any script tags
+  const withoutScripts = withoutHtml.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  // Trim whitespace
+  return withoutScripts.trim();
+};
+
 export async function subscribeToNewsletter(email: string, firstName?: string, lastName?: string): Promise<{ success: boolean; error?: string }> {
   try {
     console.log('=== Newsletter Subscription Request ===');
@@ -305,12 +343,34 @@ export async function subscribeToNewsletter(email: string, firstName?: string, l
     console.log('First Name:', firstName);
     console.log('Last Name:', lastName);
 
+    // Validate email
+    if (!validateEmail(email)) {
+      throw new Error('Invalid email address. Please use a valid email address.');
+    }
+
+    // Sanitize inputs
+    const sanitizedEmail = sanitizeInput(email);
+    const sanitizedFirstName = firstName ? sanitizeInput(firstName) : undefined;
+    const sanitizedLastName = lastName ? sanitizeInput(lastName) : undefined;
+
+    // Validate input lengths
+    if (sanitizedFirstName && sanitizedFirstName.length > 50) {
+      throw new Error('First name is too long. Maximum length is 50 characters.');
+    }
+    if (sanitizedLastName && sanitizedLastName.length > 50) {
+      throw new Error('Last name is too long. Maximum length is 50 characters.');
+    }
+
     const response = await fetch('/.netlify/functions/subscribe-newsletter', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, firstName, lastName }),
+      body: JSON.stringify({ 
+        email: sanitizedEmail, 
+        firstName: sanitizedFirstName, 
+        lastName: sanitizedLastName 
+      }),
     });
 
     console.log('=== Newsletter Subscription Response ===');

@@ -1,9 +1,72 @@
 import { Handler } from '@netlify/functions';
 
+// Rate limiting configuration
+const RATE_LIMIT = {
+  maxRequests: 5, // Maximum number of requests
+  windowMs: 60 * 60 * 1000, // 1 hour window
+};
+
+// In-memory store for rate limiting (note: this resets when the function cold starts)
+const rateLimitStore = new Map<string, { count: number; timestamp: number }>();
+
+const isRateLimited = (ip: string): boolean => {
+  const now = Date.now();
+  const userData = rateLimitStore.get(ip);
+
+  if (!userData) {
+    // First request from this IP
+    rateLimitStore.set(ip, { count: 1, timestamp: now });
+    return false;
+  }
+
+  // Check if the window has expired
+  if (now - userData.timestamp > RATE_LIMIT.windowMs) {
+    // Reset the counter for a new window
+    rateLimitStore.set(ip, { count: 1, timestamp: now });
+    return false;
+  }
+
+  // Check if the user has exceeded the rate limit
+  if (userData.count >= RATE_LIMIT.maxRequests) {
+    return true;
+  }
+
+  // Increment the counter
+  userData.count++;
+  return false;
+};
+
 const handler: Handler = async (event) => {
   console.log('=== Newsletter Subscription Start ===');
   console.log('Function called with method:', event.httpMethod);
   console.log('Request body:', event.body);
+
+  // Get client IP from headers
+  const clientIP = event.headers['client-ip'] || 
+                  event.headers['x-forwarded-for'] || 
+                  event.headers['x-real-ip'] || 
+                  'unknown';
+
+  console.log('Client IP:', clientIP);
+
+  // Check rate limit
+  if (isRateLimited(clientIP)) {
+    console.log('Rate limit exceeded for IP:', clientIP);
+    return {
+      statusCode: 429,
+      body: JSON.stringify({
+        success: false,
+        error: 'Too many requests. Please try again later.',
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Retry-After': '3600', // 1 hour in seconds
+      },
+    };
+  }
 
   // Handle CORS preflight requests
   if (event.httpMethod === 'OPTIONS') {
