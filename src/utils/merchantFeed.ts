@@ -3,8 +3,8 @@ import { shopifyClient } from '../services/shopify';
 import { stripHtml } from 'string-strip-html';
 
 const PRODUCTS_QUERY = gql`
-  query GetProductsForFeed {
-    products(first: 250) {
+  query GetProductsForFeed($cursor: String) {
+    products(first: 250, after: $cursor) {
       edges {
         node {
           id
@@ -33,6 +33,11 @@ const PRODUCTS_QUERY = gql`
             }
           }
         }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
       }
     }
   }
@@ -50,16 +55,32 @@ interface ProductFeedItem {
   brand: string;
 }
 
-export async function generateMerchantFeed(): Promise<ProductFeedItem[]> {
-  try {
-    const { data, error } = await shopifyClient.query(PRODUCTS_QUERY, {});
+async function fetchAllProducts(): Promise<any[]> {
+  let allProducts: any[] = [];
+  let hasNextPage = true;
+  let cursor: string | null = null;
+
+  while (hasNextPage) {
+    const { data, error } = await shopifyClient.query(PRODUCTS_QUERY, { cursor });
 
     if (error) {
       console.error('Error fetching products for feed:', error);
       throw error;
     }
 
-    const products = data.products.edges.map(({ node }: any) => {
+    allProducts = [...allProducts, ...data.products.edges];
+    hasNextPage = data.products.pageInfo.hasNextPage;
+    cursor = data.products.pageInfo.endCursor;
+  }
+
+  return allProducts;
+}
+
+export async function generateMerchantFeed(): Promise<ProductFeedItem[]> {
+  try {
+    const products = await fetchAllProducts();
+
+    return products.map(({ node }: any) => {
       const variant = node.variants.edges[0]?.node;
       const image = node.images.edges[0]?.node;
       const price = parseFloat(variant?.price?.amount || '0');
@@ -78,8 +99,6 @@ export async function generateMerchantFeed(): Promise<ProductFeedItem[]> {
         brand: node.vendor
       };
     });
-
-    return products;
   } catch (error) {
     console.error('Error generating merchant feed:', error);
     throw error;

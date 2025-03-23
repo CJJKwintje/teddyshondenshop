@@ -23,4 +23,13 @@ export default defineConfig({
       transformMixedEsModules: true,
     },
   },
+  server: {
+    proxy: {
+      '/feeds/merchant-products.csv': {
+        target: 'http://localhost:8888',
+        changeOrigin: true,
+        rewrite: (path) => '/.netlify/functions/merchant-feed'
+      }
+    }
+  }
 });
