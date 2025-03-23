@@ -91,6 +91,7 @@ const CATEGORY_MAPPING: Categories = {
 const PRODUCT_CARD_FRAGMENT = gql`
   fragment ProductCard on Product {
     id
+    handle
     title
     productType
     tags

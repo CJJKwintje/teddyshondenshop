@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from 'urql';
 import { gql } from 'urql';
 import {
@@ -20,10 +20,11 @@ import { formatPrice } from '../utils/formatPrice';
 import { Helmet } from 'react-helmet-async';
 
 const PRODUCT_QUERY = gql`
-  query GetProduct($id: ID!) {
-    product(id: $id) {
+  query GetProduct($handle: String!) {
+    productByHandle(handle: $handle) {
       id
       title
+      handle
       description
       descriptionHtml
       productType
@@ -122,7 +123,9 @@ const ProductImage = ({ image, alt }: { image: any; alt: string }) => {
 };
 
 export default function ProductPage() {
-  const { id } = useParams<{ id: string }>();
+  const { handle } = useParams<{ handle: string }>();
+  const [searchParams] = useSearchParams();
+  const id = searchParams.get('id');
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const [selectedImage, setSelectedImage] = React.useState(0);
@@ -132,14 +135,21 @@ export default function ProductPage() {
 
   const [result] = useQuery({
     query: PRODUCT_QUERY,
-    variables: { id: `gid://shopify/Product/${id}` },
+    variables: { handle },
   });
 
   const { data, fetching, error } = result;
 
+  // Redirect if the handle doesn't match the product's handle
+  React.useEffect(() => {
+    if (data?.productByHandle && handle !== data.productByHandle.handle) {
+      navigate(`/product/${data.productByHandle.handle}?id=${id}`, { replace: true });
+    }
+  }, [data, handle, id, navigate]);
+
   const findSelectedVariant = React.useCallback(() => {
-    if (!data?.product?.variants?.edges) return null;
-    return data.product.variants.edges.find(({ node }: any) => {
+    if (!data?.productByHandle?.variants?.edges) return null;
+    return data.productByHandle.variants.edges.find(({ node }: any) => {
       return node.selectedOptions.every(
         (option: any) => selectedOptions[option.name] === option.value
       );
@@ -147,9 +157,9 @@ export default function ProductPage() {
   }, [data, selectedOptions]);
 
   React.useEffect(() => {
-    if (data?.product?.options) {
+    if (data?.productByHandle?.options) {
       const initialOptions: Record<string, string> = {};
-      data.product.options.forEach((option: any) => {
+      data.productByHandle.options.forEach((option: any) => {
         initialOptions[option.name] = option.values[0];
       });
       setSelectedOptions(initialOptions);
@@ -166,8 +176,8 @@ export default function ProductPage() {
   const selectedVariant = findSelectedVariant();
   const price = selectedVariant
     ? parseFloat(selectedVariant.price.amount)
-    : data?.product?.priceRange?.minVariantPrice
-    ? parseFloat(data.product.priceRange.minVariantPrice.amount)
+    : data?.productByHandle?.priceRange?.minVariantPrice
+    ? parseFloat(data.productByHandle.priceRange.minVariantPrice.amount)
     : 0;
 
   const compareAtPrice =
@@ -186,17 +196,20 @@ export default function ProductPage() {
   };
 
   const handleAddToCart = () => {
-    if (!selectedVariant) return;
-    addToCart({
-      id: parseInt(id as string),
-      name: data.product.title,
+    if (!selectedVariant || !data?.productByHandle) return;
+    
+    const product = {
+      id: parseInt(data.productByHandle.id.split('/').pop() as string),
+      name: data.productByHandle.title,
       price,
-      image: data.product.images.edges[0].node.originalSrc,
-      category: data.product.productType,
+      image: data.productByHandle.images.edges[0].node.originalSrc,
+      category: data.productByHandle.productType,
       variantId: selectedVariant.id,
       variantTitle: selectedVariant.title,
-      quantity: quantity
-    });
+      quantity
+    } as const;
+    
+    addToCart(product);
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 2000);
   };
@@ -230,7 +243,7 @@ export default function ProductPage() {
     );
   }
 
-  if (!data?.product) {
+  if (!data?.productByHandle) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <SEO
@@ -257,22 +270,22 @@ export default function ProductPage() {
     );
   }
 
-  const canonicalUrl = `https://teddyshondenshop.nl/product/${id}`;
+  const canonicalUrl = `https://teddyshondenshop.nl/product/${handle}`;
   
   // Prepare structured data for the product
   const getStructuredData = () => {
-    if (!data?.product) return null;
+    if (!data?.productByHandle) return null;
 
     const structuredData = {
       '@context': 'https://schema.org/',
       '@type': 'Product',
-      name: data.product.title,
-      description: data.product.description,
-      image: data.product.images.edges[0]?.node.originalSrc,
-      sku: id,
+      name: data.productByHandle.title,
+      description: data.productByHandle.description,
+      image: data.productByHandle.images.edges[0]?.node.originalSrc,
+      sku: data.productByHandle.id.split('/').pop(),
       brand: {
         '@type': 'Brand',
-        name: data.product.vendor
+        name: data.productByHandle.vendor
       },
       offers: {
         '@type': 'Offer',
@@ -295,12 +308,12 @@ export default function ProductPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <SEO
-        title={data.product.title}
-        description={data.product.description || `Koop ${data.product.title} bij Teddy's hondenshop. ${data.product.vendor} ${data.product.productType}. ${selectedVariant?.quantityAvailable > 0 ? 'Nu op voorraad en snel leverbaar!' : 'Tijdelijk uitverkocht.'}`}
+        title={data.productByHandle.title}
+        description={data.productByHandle.description || `Koop ${data.productByHandle.title} bij Teddy's hondenshop. ${data.productByHandle.vendor} ${data.productByHandle.productType}. ${selectedVariant?.quantityAvailable > 0 ? 'Nu op voorraad en snel leverbaar!' : 'Tijdelijk uitverkocht.'}`}
         canonical={canonicalUrl}
         type="product"
-        image={data.product.images.edges[0]?.node.originalSrc}
-        imageAlt={data.product.images.edges[0]?.node.altText || data.product.title}
+        image={data.productByHandle.images.edges[0]?.node.originalSrc}
+        imageAlt={data.productByHandle.images.edges[0]?.node.altText || data.productByHandle.title}
       />
       <Helmet>
         <script type="application/ld+json">
@@ -322,7 +335,7 @@ export default function ProductPage() {
         {/* Add meta tags for condition */}
         <meta property="product:condition" content="new" />
         {/* Add meta tags for brand */}
-        <meta property="product:brand" content={data.product.vendor} />
+        <meta property="product:brand" content={data.productByHandle.vendor} />
       </Helmet>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -338,21 +351,21 @@ export default function ProductPage() {
         <div className="lg:hidden p-8 bg-white">
           {/* 1. Title (Brand & Product Title) */}
           <div className="mb-4">
-            <h2 className="text-sm font-medium text-gray-500">{data.product.vendor}</h2>
-            <h1 className="text-3xl font-bold text-gray-900">{data.product.title}</h1>
+            <h2 className="text-sm font-medium text-gray-500">{data.productByHandle.vendor}</h2>
+            <h1 className="text-3xl font-bold text-gray-900">{data.productByHandle.title}</h1>
           </div>
 
           {/* 2. Images */}
           <div className="mb-4">
             <div className="aspect-square rounded-xl overflow-hidden bg-white border border-gray-100">
               <ProductImage
-                image={data.product.images.edges[selectedImage].node}
-                alt={data.product.images.edges[selectedImage].node.altText || data.product.title}
+                image={data.productByHandle.images.edges[selectedImage].node}
+                alt={data.productByHandle.images.edges[selectedImage].node.altText || data.productByHandle.title}
               />
             </div>
-            {data.product.images.edges.length > 1 && (
+            {data.productByHandle.images.edges.length > 1 && (
               <div className="grid grid-cols-5 gap-3 mt-4">
-                {data.product.images.edges.map((image: any, index: number) => (
+                {data.productByHandle.images.edges.map((image: any, index: number) => (
                   <button
                     key={image.node.originalSrc}
                     onClick={() => setSelectedImage(index)}
@@ -365,7 +378,7 @@ export default function ProductPage() {
                     <div className="w-full h-full p-2">
                       <img
                         src={image.node.originalSrc}
-                        alt={image.node.altText || `${data.product.title} ${index + 1}`}
+                        alt={image.node.altText || `${data.productByHandle.title} ${index + 1}`}
                         className="w-full h-full object-contain"
                       />
                     </div>
@@ -403,8 +416,8 @@ export default function ProductPage() {
             </div>
 
             {/* Add Variant Picker here */}
-            {data.product.options.some((option: any) => option.values.length > 1) &&
-              data.product.options.map((option: any) => (
+            {data.productByHandle.options.some((option: any) => option.values.length > 1) &&
+              data.productByHandle.options.map((option: any) => (
                 <div key={option.id} className="mt-4">
                   <h3 className="text-sm font-medium text-gray-900 mb-3">
                     {option.name}
@@ -505,14 +518,14 @@ export default function ProductPage() {
           </div>
 
           {/* Add Description below benefits */}
-          {data.product.description && (
+          {data.productByHandle.description && (
             <div className="prose prose-sm max-w-none text-gray-600 pt-6 mt-6 border-t">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Productomschrijving
               </h3>
               <div
                 dangerouslySetInnerHTML={{
-                  __html: data.product.descriptionHtml || data.product.description,
+                  __html: data.productByHandle.descriptionHtml || data.productByHandle.description,
                 }}
               />
             </div>
@@ -526,13 +539,13 @@ export default function ProductPage() {
             <div className="space-y-6">
               <div className="aspect-square rounded-xl overflow-hidden bg-white border border-gray-100">
                 <ProductImage
-                  image={data.product.images.edges[selectedImage].node}
-                  alt={data.product.images.edges[selectedImage].node.altText || data.product.title}
+                  image={data.productByHandle.images.edges[selectedImage].node}
+                  alt={data.productByHandle.images.edges[selectedImage].node.altText || data.productByHandle.title}
                 />
               </div>
-              {data.product.images.edges.length > 1 && (
+              {data.productByHandle.images.edges.length > 1 && (
                 <div className="grid grid-cols-5 gap-3">
-                  {data.product.images.edges.map((image: any, index: number) => (
+                  {data.productByHandle.images.edges.map((image: any, index: number) => (
                     <button
                       key={image.node.originalSrc}
                       onClick={() => setSelectedImage(index)}
@@ -545,7 +558,7 @@ export default function ProductPage() {
                       <div className="w-full h-full p-2">
                         <img
                           src={image.node.originalSrc}
-                          alt={image.node.altText || `${data.product.title} ${index + 1}`}
+                          alt={image.node.altText || `${data.productByHandle.title} ${index + 1}`}
                           className="w-full h-full object-contain"
                         />
                       </div>
@@ -553,14 +566,14 @@ export default function ProductPage() {
                   ))}
                 </div>
               )}
-              {data.product.description && (
+              {data.productByHandle.description && (
                 <div className="prose prose-sm max-w-none text-gray-600 pt-6 border-t">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
                     Productomschrijving
                   </h3>
                   <div
                     dangerouslySetInnerHTML={{
-                      __html: data.product.descriptionHtml || data.product.description,
+                      __html: data.productByHandle.descriptionHtml || data.productByHandle.description,
                     }}
                   />
                 </div>
@@ -571,15 +584,15 @@ export default function ProductPage() {
             <div className="space-y-8">
               <div>
                 <h2 className="text-sm font-medium text-gray-500 mb-1">
-                  {data.product.vendor}
+                  {data.productByHandle.vendor}
                 </h2>
                 <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                  {data.product.title}
+                  {data.productByHandle.title}
                 </h1>
               </div>
   
-              {data.product.options.some((option: any) => option.values.length > 1) &&
-                data.product.options.map((option: any) => (
+              {data.productByHandle.options.some((option: any) => option.values.length > 1) &&
+                data.productByHandle.options.map((option: any) => (
                   <div key={option.id}>
                     <h3 className="text-sm font-medium text-gray-900 mb-3">
                       {option.name}
@@ -697,7 +710,7 @@ export default function ProductPage() {
                 <BenefitItem
                   icon={Truck}
                   title="Gratis Verzending"
-                  description="Gratis verzending vanaf €50"
+                  description="Gratis verzending vanaf €59"
                 />
                 <BenefitItem
                   icon={Timer}

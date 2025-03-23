@@ -18,6 +18,7 @@ const PRODUCTS_QUERY = gql`
       edges {
         node {
           id
+          handle
           title
           productType
           images(first: 1) {
@@ -335,6 +336,7 @@ const HomePage: React.FC = () => {
                   <ProductCard
                     key={productId}
                     id={parseInt(productId)}
+                    handle={product.handle}
                     title={product.title}
                     category={product.productType || 'General'}
                     imageUrl={product.images.edges[0]?.node.originalSrc}

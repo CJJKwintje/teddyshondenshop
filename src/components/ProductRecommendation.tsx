@@ -6,6 +6,7 @@ import { formatPrice } from '../utils/formatPrice';
 
 interface Product {
   id: string;
+  handle: string;
   title: string;
   description: string;
   price: string;
@@ -53,7 +54,7 @@ export default function ProductRecommendation({ products }: ProductRecommendatio
       {products.map((product) => (
         <Link 
           key={product.id}
-          to={`/product/${product.id.split('/').pop()}`}
+          to={`/product/${product.handle}`}
           className="block group bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-all duration-200 overflow-hidden"
         >
           <div className="flex items-center gap-4 p-3">

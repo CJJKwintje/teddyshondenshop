@@ -21,6 +21,7 @@ const PRODUCTS_PER_PAGE = 25;
 const PRODUCT_CARD_FRAGMENT = gql`
   fragment ProductCard on Product {
     id
+    handle
     title
     productType
     tags

@@ -41,7 +41,7 @@ function AppContent() {
         <Route path="/cart" element={<CartPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/producten" element={<ProductsPage />} />
-        <Route path="/product/:id" element={<ProductPage />} />
+        <Route path="/product/:handle" element={<ProductPage />} />
         <Route path="/categorie/:category" element={<CategoryPage />} />
         <Route path="/categorie/:category/:subcategory" element={<SubCategoryPage />} />
         <Route path="/chat" element={<ChatbotPage />} />

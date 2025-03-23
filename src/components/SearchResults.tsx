@@ -69,6 +69,7 @@ export default function SearchResults({
             <ProductCard
               key={productId}
               id={parseInt(productId)}
+              handle={product.handle}
               title={product.title}
               category={product.productType || (collection?.title ?? 'General')}
               imageUrl={product.images.edges[0]?.node.originalSrc}

@@ -5,6 +5,7 @@ import { ShoppingCart, Check, ImageOff, Layers } from 'lucide-react';
 
 interface ProductCardProps {
   id: number;
+  handle: string;
   title: string;
   category: string;
   imageUrl: string;
@@ -50,6 +51,7 @@ function ProductImage({ imageUrl, altText, title }: { imageUrl: string; altText:
 
 export default function ProductCard({ 
   id, 
+  handle,
   title, 
   category, 
   imageUrl, 
@@ -97,7 +99,7 @@ export default function ProductCard({
 
   return (
     <Link 
-      to={`/product/${id}`}
+      to={`/product/${handle}`}
       className="block group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
     >
       <div className="relative w-full pt-[100%] bg-white">
