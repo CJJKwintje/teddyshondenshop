@@ -15,7 +15,7 @@ const CartPage: React.FC = () => {
   const [retrying, setRetrying] = useState(false);
   
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shippingCost = subtotal >= 50 ? 0 : 4.95;
+  const shippingCost = subtotal >= 59 ? 0 : 6.95;
   const total = subtotal + shippingCost;
 
   const handleCheckout = async (retry = false) => {
@@ -172,7 +172,7 @@ const CartPage: React.FC = () => {
               </div>
               {shippingCost > 0 && (
                 <p className="text-sm text-gray-600">
-                  Nog €{formatPrice(50 - subtotal)} tot gratis verzending
+                  Nog €{formatPrice(59 - subtotal)} tot gratis verzending
                 </p>
               )}
               <div className="border-t pt-3">
