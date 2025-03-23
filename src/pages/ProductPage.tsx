@@ -18,6 +18,7 @@ import { useCart } from '../context/CartContext';
 import SEO from '../components/SEO';
 import { formatPrice } from '../utils/formatPrice';
 import { Helmet } from 'react-helmet-async';
+import { trackAddToCart, trackViewItem } from '../utils/analytics';
 
 const PRODUCT_QUERY = gql`
   query GetProduct($handle: String!) {
@@ -210,9 +211,40 @@ export default function ProductPage() {
     } as const;
     
     addToCart(product);
+    // Track the add to cart event
+    trackAddToCart({
+      id: product.id.toString(),
+      title: product.name,
+      price: product.price,
+      category: product.category,
+      brand: data.productByHandle.vendor
+    }, quantity, {
+      pageType: 'product',
+      pageName: data.productByHandle.title
+    });
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 2000);
   };
+
+  // Add view_item tracking when product data is loaded
+  React.useEffect(() => {
+    if (data?.productByHandle && !fetching) {
+      const price = selectedVariant
+        ? parseFloat(selectedVariant.price.amount)
+        : data.productByHandle.priceRange.minVariantPrice
+        ? parseFloat(data.productByHandle.priceRange.minVariantPrice.amount)
+        : 0;
+
+      trackViewItem({
+        id: data.productByHandle.id.split('/').pop() as string,
+        title: data.productByHandle.title,
+        price,
+        brand: data.productByHandle.vendor,
+        category: data.productByHandle.productType,
+        variant: selectedVariant?.title
+      });
+    }
+  }, [data, fetching]);
 
   if (fetching) {
     return (

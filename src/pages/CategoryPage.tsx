@@ -423,6 +423,11 @@ export default function CategoryPage() {
               <SearchResults
                 products={paginatedProducts}
                 isLoading={false}
+                pageContext={{
+                  pageType: 'category',
+                  pageName: currentCategory.mainCategory,
+                  category: category
+                }}
               />
               
               {totalPages > 1 && (

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { ShoppingCart, Check, ImageOff, Layers } from 'lucide-react';
+import { trackAddToCart } from '../utils/analytics';
 
 interface ProductCardProps {
   id: number;
@@ -17,6 +18,13 @@ interface ProductCardProps {
   variantsCount?: number;
   formattedPrice: string;
   formattedCompareAtPrice?: string;
+  pageContext?: {
+    pageType: 'search' | 'category' | 'subcategory' | 'recommendation';
+    pageName?: string;
+    category?: string;
+    subcategory?: string;
+    searchQuery?: string;
+  };
 }
 
 function ProductImage({ imageUrl, altText, title }: { imageUrl: string; altText: string; title: string }) {
@@ -62,7 +70,8 @@ export default function ProductCard({
   hasAvailableVariant = true,
   variantsCount = 1,
   formattedPrice,
-  formattedCompareAtPrice
+  formattedCompareAtPrice,
+  pageContext
 }: ProductCardProps) {
   const { addToCart } = useCart();
   const [isAdded, setIsAdded] = React.useState(false);
@@ -93,6 +102,16 @@ export default function ProductCard({
       category,
       variantId: variantId
     });
+
+    // Track the add to cart event with page context
+    trackAddToCart({
+      id: id.toString(),
+      title,
+      price,
+      category,
+      brand: category // Using category as brand for now
+    }, 1, pageContext);
+
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 2000);
   };

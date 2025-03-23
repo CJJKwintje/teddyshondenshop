@@ -298,6 +298,11 @@ export default function SearchPage() {
               error={result.error?.message}
               products={paginatedProducts}
               searchQuery={searchQuery}
+              pageContext={{
+                pageType: 'search',
+                pageName: 'Search Results',
+                searchQuery
+              }}
             />
 
             {/* Pagination */}

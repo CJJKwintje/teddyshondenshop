@@ -82,7 +82,13 @@ export const trackProductListView = (products: Product[], listName: string) => {
   });
 };
 
-export const trackAddToCart = (product: Product, quantity: number) => {
+export const trackAddToCart = (product: Product, quantity: number, pageContext?: {
+  pageType: 'product' | 'search' | 'category' | 'subcategory' | 'recommendation';
+  pageName?: string;
+  category?: string;
+  subcategory?: string;
+  searchQuery?: string;
+}) => {
   window.dataLayer?.push({
     event: 'add_to_cart',
     items: [{
@@ -92,7 +98,11 @@ export const trackAddToCart = (product: Product, quantity: number) => {
       quantity,
       brand: product.brand,
       category: product.category
-    }]
+    }],
+    page_context: pageContext || {
+      pageType: 'product',
+      pageName: window.location.pathname
+    }
   });
 };
 
@@ -159,5 +169,21 @@ export const trackPurchase = (orderData: {
       brand: item.brand,
       category: item.category
     }))
+  });
+};
+
+export const trackViewItem = (product: Product) => {
+  window.dataLayer?.push({
+    event: 'view_item',
+    items: [{
+      id: product.id,
+      name: product.title,
+      price: product.price,
+      brand: product.brand,
+      category: product.category,
+      variant: product.variant
+    }],
+    value: product.price,
+    currency: 'EUR'
   });
 }; 

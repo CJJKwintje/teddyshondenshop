@@ -672,6 +672,12 @@ export default function SubCategoryPage() {
               isLoading={productsResult.fetching && products.length === 0}
               error={(productsResult.error as any)?.message || ''}
               products={products}
+              pageContext={{
+                pageType: 'subcategory',
+                pageName: pageData.fields.title,
+                category: category,
+                subcategory: subcategory
+              }}
             />
 
             {pageInfo?.hasNextPage && (

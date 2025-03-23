@@ -12,6 +12,13 @@ interface SearchResultsProps {
   filteredProducts?: any[];
   loadMoreRef?: React.RefObject<HTMLDivElement>;
   isFetching?: boolean;
+  pageContext?: {
+    pageType: 'search' | 'category' | 'subcategory' | 'recommendation';
+    pageName?: string;
+    category?: string;
+    subcategory?: string;
+    searchQuery?: string;
+  };
 }
 
 export default function SearchResults({
@@ -23,6 +30,7 @@ export default function SearchResults({
   filteredProducts = [],
   loadMoreRef,
   isFetching,
+  pageContext
 }: SearchResultsProps) {
   if (isLoading) {
     return (
@@ -86,6 +94,7 @@ export default function SearchResults({
                 variantsCount={product.variantsCount}
                 formattedPrice={product.formattedPrice}
                 formattedCompareAtPrice={product.formattedCompareAtPrice}
+                pageContext={pageContext}
               />
             </Link>
           );
