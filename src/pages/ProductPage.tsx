@@ -17,6 +17,7 @@ import {
 import { useCart } from '../context/CartContext';
 import SEO from '../components/SEO';
 import { formatPrice } from '../utils/formatPrice';
+import { Helmet } from 'react-helmet-async';
 
 const PRODUCT_QUERY = gql`
   query GetProduct($id: ID!) {
@@ -257,17 +258,72 @@ export default function ProductPage() {
   }
 
   const canonicalUrl = `https://teddyshondenshop.nl/product/${id}`;
+  
+  // Prepare structured data for the product
+  const getStructuredData = () => {
+    if (!data?.product) return null;
+
+    const structuredData = {
+      '@context': 'https://schema.org/',
+      '@type': 'Product',
+      name: data.product.title,
+      description: data.product.description,
+      image: data.product.images.edges[0]?.node.originalSrc,
+      sku: id,
+      brand: {
+        '@type': 'Brand',
+        name: data.product.vendor
+      },
+      offers: {
+        '@type': 'Offer',
+        url: canonicalUrl,
+        priceCurrency: 'EUR',
+        price: price,
+        availability: selectedVariant?.quantityAvailable > 0 
+          ? 'https://schema.org/InStock' 
+          : 'https://schema.org/OutOfStock',
+        seller: {
+          '@type': 'Organization',
+          name: "Teddy's hondenshop"
+        }
+      }
+    };
+
+    return JSON.stringify(structuredData);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <SEO
         title={data.product.title}
-        description={data.product.description || `Koop ${data.product.title} bij Teddy's Hondenshop`}
+        description={data.product.description || `Koop ${data.product.title} bij Teddy's hondenshop. ${data.product.vendor} ${data.product.productType}. ${selectedVariant?.quantityAvailable > 0 ? 'Nu op voorraad en snel leverbaar!' : 'Tijdelijk uitverkocht.'}`}
         canonical={canonicalUrl}
         type="product"
         image={data.product.images.edges[0]?.node.originalSrc}
         imageAlt={data.product.images.edges[0]?.node.altText || data.product.title}
       />
+      <Helmet>
+        <script type="application/ld+json">
+          {getStructuredData()}
+        </script>
+        {/* Add meta tags for price */}
+        {isOnSale && (
+          <>
+            <meta property="product:price:amount" content={price.toString()} />
+            <meta property="product:price:currency" content="EUR" />
+            <meta property="product:sale_price:amount" content={price.toString()} />
+            <meta property="product:sale_price:currency" content="EUR" />
+            <meta property="product:original_price:amount" content={compareAtPrice?.toString() || ''} />
+            <meta property="product:original_price:currency" content="EUR" />
+          </>
+        )}
+        {/* Add meta tags for availability */}
+        <meta property="product:availability" content={selectedVariant?.quantityAvailable > 0 ? 'in stock' : 'out of stock'} />
+        {/* Add meta tags for condition */}
+        <meta property="product:condition" content="new" />
+        {/* Add meta tags for brand */}
+        <meta property="product:brand" content={data.product.vendor} />
+      </Helmet>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <button

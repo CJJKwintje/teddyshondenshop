@@ -208,7 +208,7 @@ const HomePage: React.FC = () => {
     <main className="bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         <SEO
-          title="Teddy's Hondenshop"
+          title="Teddy's hondenshop"
           description="De beste producten voor jouw hond, direct bij jou thuisbezorgd. Ontdek ons uitgebreide assortiment van voeding, snacks, speeltjes en training"
           canonical="https://teddyshondenshop.nl"
           type="website"

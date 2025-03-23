@@ -20,7 +20,7 @@ export default function SEO({
   imageAlt,
   noindex = false,
 }: SEOProps) {
-  const siteTitle = "Teddy's Hondenshop";
+  const siteTitle = "Teddy's hondenshop";
   const fullTitle = title === siteTitle ? title : `${title} | ${siteTitle}`;
   
   return (
