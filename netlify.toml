@@ -18,6 +18,12 @@
   status = 200
   force = true
 
+[[redirects]]
+  from = "/api/trigger-feed"
+  to = "/.netlify/functions/trigger-feed"
+  status = 200
+  force = true
+
 [functions]
   node_bundler = "esbuild"
 
