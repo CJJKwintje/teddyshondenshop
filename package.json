@@ -15,6 +15,7 @@
     "@contentful/rich-text-types": "^16.3.4",
     "@netlify/functions": "^2.6.0",
     "@types/js-cookie": "^3.0.6",
+    "@types/next": "^8.0.7",
     "contentful": "^10.6.21",
     "dotenv": "^16.4.7",
     "js-cookie": "^3.0.5",
@@ -25,7 +26,8 @@
     "react-helmet-async": "^2.0.4",
     "react-router-dom": "^6.22.3",
     "shopify-buy": "^2.21.1",
-    "urql": "^4.0.6"
+    "string-strip-html": "^13.4.12",
+    "urql": "^4.2.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
