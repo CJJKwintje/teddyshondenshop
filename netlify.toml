@@ -11,3 +11,8 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+[[redirects]]
+  from = "/feeds/merchant-products.csv"
+  to = "/.netlify/functions/merchant-feed"
+  status = 200
