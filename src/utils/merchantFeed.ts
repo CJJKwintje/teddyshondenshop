@@ -2,9 +2,11 @@ import { gql } from 'urql';
 import { shopifyClient } from '../services/shopify';
 import { stripHtml } from 'string-strip-html';
 
+const PRODUCTS_PER_PAGE = 250;
+
 const PRODUCTS_QUERY = gql`
   query GetProductsForFeed($cursor: String) {
-    products(first: 250, after: $cursor) {
+    products(first: ${PRODUCTS_PER_PAGE}, after: $cursor) {
       edges {
         node {
           id
@@ -71,8 +73,12 @@ async function fetchAllProducts(): Promise<any[]> {
     allProducts = [...allProducts, ...data.products.edges];
     hasNextPage = data.products.pageInfo.hasNextPage;
     cursor = data.products.pageInfo.endCursor;
+
+    // Log progress
+    console.log(`Fetched ${allProducts.length} products so far...`);
   }
 
+  console.log(`Finished fetching all ${allProducts.length} products`);
   return allProducts;
 }
 

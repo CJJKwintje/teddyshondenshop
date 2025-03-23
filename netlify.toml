@@ -13,6 +13,12 @@
   status = 200
 
 [[redirects]]
-  from = "/feeds/merchant-products.csv"
+  from = "/feeds/merchant-products.xml"
   to = "/.netlify/functions/merchant-feed"
   status = 200
+
+[functions]
+  node_bundler = "esbuild"
+
+[functions.merchant-feed]
+  timeout = 60
