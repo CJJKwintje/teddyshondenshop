@@ -105,15 +105,43 @@ export async function generateMerchantFeed(): Promise<ProductFeedItem[]> {
   }
 }
 
-export function convertToCSV(products: ProductFeedItem[]): string {
-  const headers = ['id', 'title', 'description', 'link', 'image_link', 'availability', 'price', 'sale_price', 'brand'];
-  const rows = products.map(product => 
-    headers.map(header => {
-      const value = product[header as keyof ProductFeedItem];
-      // Escape commas and quotes in the value
-      return `"${String(value).replace(/"/g, '""')}"`;
-    }).join(',')
-  );
+export function convertToXML(products: ProductFeedItem[]): string {
+  const xmlHeader = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  const rssHeader = '<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">\n';
+  const channelHeader = '<channel>\n';
+  const channelFooter = '</channel>\n';
+  const rssFooter = '</rss>';
 
-  return [headers.join(','), ...rows].join('\n');
+  const items = products.map(product => {
+    const item = [
+      '  <item>',
+      `    <g:id>${product.id}</g:id>`,
+      `    <title>${escapeXml(product.title)}</title>`,
+      `    <description>${escapeXml(product.description)}</description>`,
+      `    <link>${escapeXml(product.link)}</link>`,
+      `    <g:image_link>${escapeXml(product.image_link)}</g:image_link>`,
+      `    <g:availability>${product.availability}</g:availability>`,
+      `    <g:price>${product.price}</g:price>`,
+      product.sale_price ? `    <g:sale_price>${product.sale_price}</g:sale_price>` : '',
+      `    <g:brand>${escapeXml(product.brand)}</g:brand>`,
+      '  </item>'
+    ].filter(Boolean).join('\n');
+
+    return item;
+  }).join('\n\n');
+
+  return xmlHeader + rssHeader + channelHeader + items + '\n' + channelFooter + rssFooter;
+}
+
+function escapeXml(unsafe: string): string {
+  return unsafe.replace(/[<>&'"]/g, c => {
+    switch (c) {
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '&': return '&amp;';
+      case '\'': return '&apos;';
+      case '"': return '&quot;';
+      default: return c;
+    }
+  });
 } 

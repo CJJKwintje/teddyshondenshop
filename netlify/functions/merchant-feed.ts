@@ -1,5 +1,5 @@
 import { Handler } from '@netlify/functions';
-import { generateMerchantFeed, convertToCSV } from '../../src/utils/merchantFeed';
+import { generateMerchantFeed, convertToXML } from '../../src/utils/merchantFeed';
 
 const handler: Handler = async (event) => {
   try {
@@ -8,17 +8,17 @@ const handler: Handler = async (event) => {
     process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN = process.env.VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN;
 
     const products = await generateMerchantFeed();
-    const csv = convertToCSV(products);
+    const xml = convertToXML(products);
 
     return {
       statusCode: 200,
       headers: {
-        'Content-Type': 'application/csv',
-        'Content-Disposition': 'attachment; filename=merchant-products.csv',
+        'Content-Type': 'application/xml',
+        'Content-Disposition': 'inline; filename=merchant-products.xml',
         'Cache-Control': 'public, max-age=3600',
         'X-Content-Type-Options': 'nosniff'
       },
-      body: csv,
+      body: xml,
     };
   } catch (error) {
     console.error('Error generating merchant feed:', error);
