@@ -13,8 +13,10 @@ const handler: Handler = async (event) => {
     return {
       statusCode: 200,
       headers: {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': 'inline; filename=merchant-products.csv',
+        'Content-Type': 'application/csv',
+        'Content-Disposition': 'attachment; filename=merchant-products.csv',
+        'Cache-Control': 'public, max-age=3600',
+        'X-Content-Type-Options': 'nosniff'
       },
       body: csv,
     };
