@@ -314,28 +314,18 @@ export default function ProductPage() {
         type="product"
         image={data.productByHandle.images.edges[0]?.node.originalSrc}
         imageAlt={data.productByHandle.images.edges[0]?.node.altText || data.productByHandle.title}
+        product={{
+          price: price || undefined,
+          compareAtPrice: compareAtPrice || undefined,
+          isOnSale: isOnSale || undefined,
+          availability: selectedVariant?.quantityAvailable > 0 ? 'in stock' : 'out of stock',
+          brand: data.productByHandle.vendor
+        }}
       />
       <Helmet>
         <script type="application/ld+json">
           {getStructuredData()}
         </script>
-        {/* Add meta tags for price */}
-        {isOnSale && (
-          <>
-            <meta property="product:price:amount" content={price.toString()} />
-            <meta property="product:price:currency" content="EUR" />
-            <meta property="product:sale_price:amount" content={price.toString()} />
-            <meta property="product:sale_price:currency" content="EUR" />
-            <meta property="product:original_price:amount" content={compareAtPrice?.toString() || ''} />
-            <meta property="product:original_price:currency" content="EUR" />
-          </>
-        )}
-        {/* Add meta tags for availability */}
-        <meta property="product:availability" content={selectedVariant?.quantityAvailable > 0 ? 'in stock' : 'out of stock'} />
-        {/* Add meta tags for condition */}
-        <meta property="product:condition" content="new" />
-        {/* Add meta tags for brand */}
-        <meta property="product:brand" content={data.productByHandle.vendor} />
       </Helmet>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import ProductCard from './ProductCard';
+import { Link } from 'react-router-dom';
 
 interface SearchResultsProps {
   isLoading?: boolean;
@@ -66,22 +67,27 @@ export default function SearchResults({
             : undefined;
           
           return (
-            <ProductCard
+            <Link
+              to={`/product/${product.handle}`}
+              className="group"
               key={productId}
-              id={parseInt(productId)}
-              handle={product.handle}
-              title={product.title}
-              category={product.productType || (collection?.title ?? 'General')}
-              imageUrl={product.images.edges[0]?.node.originalSrc}
-              altText={product.images.edges[0]?.node.altText}
-              price={parseFloat(product.priceRange.minVariantPrice.amount)}
-              compareAtPrice={compareAtPrice}
-              variantId={product.firstVariantId}
-              hasAvailableVariant={product.hasAvailableVariant}
-              variantsCount={product.variantsCount}
-              formattedPrice={product.formattedPrice}
-              formattedCompareAtPrice={product.formattedCompareAtPrice}
-            />
+            >
+              <ProductCard
+                id={parseInt(productId)}
+                handle={product.handle}
+                title={product.title}
+                category={product.productType || (collection?.title ?? 'General')}
+                imageUrl={product.images.edges[0]?.node.originalSrc}
+                altText={product.images.edges[0]?.node.altText}
+                price={parseFloat(product.priceRange.minVariantPrice.amount)}
+                compareAtPrice={compareAtPrice}
+                variantId={product.firstVariantId}
+                hasAvailableVariant={product.hasAvailableVariant}
+                variantsCount={product.variantsCount}
+                formattedPrice={product.formattedPrice}
+                formattedCompareAtPrice={product.formattedCompareAtPrice}
+              />
+            </Link>
           );
         })}
       </div>

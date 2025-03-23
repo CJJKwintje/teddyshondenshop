@@ -22,6 +22,7 @@ const SEARCH_PRODUCTS_QUERY = gql`
       edges {
         node {
           id
+          handle
           title
           productType
           tags
