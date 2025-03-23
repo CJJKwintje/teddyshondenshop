@@ -14,13 +14,13 @@
 
 [[redirects]]
   from = "/feeds/merchant-products.xml"
-  to = "/.netlify/functions/merchant-feed"
+  to = "/feeds/merchant-products.xml"
   status = 200
   force = true
 
 [functions]
   node_bundler = "esbuild"
 
-[functions.merchant-feed]
+[functions.generate-feed]
+  schedule = "0 */1 * * *"  # Run every hour
   timeout = 60
-  background = true
