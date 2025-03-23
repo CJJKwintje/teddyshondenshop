@@ -16,9 +16,11 @@
   from = "/feeds/merchant-products.xml"
   to = "/.netlify/functions/merchant-feed"
   status = 200
+  force = true
 
 [functions]
   node_bundler = "esbuild"
 
 [functions.merchant-feed]
   timeout = 60
+  background = true
