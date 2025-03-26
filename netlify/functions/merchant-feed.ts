@@ -21,6 +21,7 @@ const handler: Handler = async (event) => {
         headers: {
           'Content-Type': 'application/xml',
           'Cache-Control': 'public, max-age=3600',
+          'Access-Control-Allow-Origin': '*',
         },
         body: cachedFeed
       };
@@ -65,6 +66,7 @@ const handler: Handler = async (event) => {
       headers: {
         'Content-Type': 'application/xml',
         'Cache-Control': 'public, max-age=3600',
+        'Access-Control-Allow-Origin': '*',
       },
       body: xml
     };
@@ -79,6 +81,7 @@ const handler: Handler = async (event) => {
         headers: {
           'Content-Type': 'application/xml',
           'Cache-Control': 'public, max-age=3600',
+          'Access-Control-Allow-Origin': '*',
         },
         body: cachedFeed
       };
@@ -86,6 +89,11 @@ const handler: Handler = async (event) => {
 
     return {
       statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        'Access-Control-Allow-Origin': '*',
+      },
       body: JSON.stringify({ 
         message: 'Error generating feed',
         error: error instanceof Error ? error.message : 'Unknown error'

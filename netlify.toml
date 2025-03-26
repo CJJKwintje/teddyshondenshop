@@ -7,6 +7,13 @@
   NODE_VERSION = "18"
   NPM_FLAGS = "--no-optional"
 
+[dev]
+  targetPort = 5173
+  port = 8888
+  framework = "vite"
+  functionsPort = 9999
+  timeout = 60
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
@@ -18,9 +25,15 @@
   status = 200
   force = true
 
+[[redirects]]
+  from = "/.netlify/functions/merchant-feed"
+  to = "/.netlify/functions/merchant-feed"
+  status = 200
+  force = true
+
 [functions]
   node_bundler = "esbuild"
 
 [functions.merchant-feed]
-  timeout = 10
+  timeout = 60
   memory = 1024
