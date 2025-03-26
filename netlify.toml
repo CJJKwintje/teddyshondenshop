@@ -25,12 +25,6 @@
   status = 200
   force = true
 
-[[redirects]]
-  from = "/.netlify/functions/merchant-feed"
-  to = "/.netlify/functions/merchant-feed"
-  status = 200
-  force = true
-
 [functions]
   node_bundler = "esbuild"
 

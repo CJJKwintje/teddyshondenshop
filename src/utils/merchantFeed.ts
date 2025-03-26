@@ -10,8 +10,6 @@ interface ShopifyProduct {
   description: string;
   handle: string;
   vendor: string;
-  weight: number;
-  weightUnit: string;
   images: {
     edges: Array<{
       node: {
@@ -59,8 +57,6 @@ const PRODUCTS_QUERY = gql`
           description
           handle
           vendor
-          weight
-          weightUnit
           images(first: 1) {
             edges {
               node {
@@ -165,9 +161,9 @@ export async function generateMerchantFeed(): Promise<ProductFeedItem[]> {
       const compareAtPrice = parseFloat(variant?.compareAtPrice?.amount || '0');
       const isOnSale = compareAtPrice > price;
 
-      // Get weight from variant or product, default to 0 if not available
-      const weight = variant?.weight || node.weight || 0;
-      const weightUnit = variant?.weightUnit || node.weightUnit || 'KILOGRAMS';
+      // Get weight from variant only
+      const weight = variant?.weight || 0;
+      const weightUnit = variant?.weightUnit || 'KILOGRAMS';
       
       // Convert weight to grams (Google Merchant requirement)
       const weightInGrams = weightUnit === 'KILOGRAMS' ? weight * 1000 : weight;
