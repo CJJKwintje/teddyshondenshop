@@ -14,15 +14,13 @@
 
 [[redirects]]
   from = "/feeds/merchant-products.xml"
-  to = "/feeds/merchant-products.xml"
+  to = "/.netlify/functions/merchant-feed"
   status = 200
   force = true
 
 [functions]
   node_bundler = "esbuild"
 
-[functions.generate-feed]
-  schedule = "0 */1 * * *"  # Run every hour
+[functions.merchant-feed]
   timeout = 10
-  memory = 1024  # Increase memory allocation to 1GB
-  background = true  # Allow the function to run in the background
+  memory = 1024

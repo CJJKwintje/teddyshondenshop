@@ -1,13 +1,15 @@
 import { Handler } from '@netlify/functions';
 import { generateMerchantFeed, convertToXML } from '../../src/utils/merchantFeed';
+import fs from 'fs';
+import path from 'path';
 
-// Cache the feed for 1 hour
+// Cache configuration
+const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 let cachedFeed: string | null = null;
 let lastGenerated: number = 0;
-const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 
 const handler: Handler = async (event) => {
-  console.log('Function started');
+  console.log('Feed generation started');
   
   try {
     // Check if we have a valid cached feed
@@ -18,11 +20,9 @@ const handler: Handler = async (event) => {
         statusCode: 200,
         headers: {
           'Content-Type': 'application/xml',
-          'Content-Disposition': 'inline; filename=merchant-products.xml',
           'Cache-Control': 'public, max-age=3600',
-          'X-Content-Type-Options': 'nosniff'
         },
-        body: cachedFeed,
+        body: cachedFeed
       };
     }
 
@@ -42,31 +42,50 @@ const handler: Handler = async (event) => {
     const products = await generateMerchantFeed();
     console.log(`Successfully fetched ${products.length} products`);
 
+    if (products.length === 0) {
+      throw new Error('No products were fetched');
+    }
+
     console.log('Converting to XML...');
     const xml = convertToXML(products);
     console.log('XML conversion complete');
 
-    // Cache the feed
+    // Update cache
     cachedFeed = xml;
     lastGenerated = now;
 
+    // Write the feed to a file in the public directory
+    const feedPath = path.join(process.cwd(), 'public', 'feeds', 'merchant-products.xml');
+    fs.mkdirSync(path.dirname(feedPath), { recursive: true });
+    fs.writeFileSync(feedPath, xml);
+
+    console.log('Feed file written successfully');
     return {
       statusCode: 200,
       headers: {
         'Content-Type': 'application/xml',
-        'Content-Disposition': 'inline; filename=merchant-products.xml',
         'Cache-Control': 'public, max-age=3600',
-        'X-Content-Type-Options': 'nosniff'
       },
-      body: xml,
+      body: xml
     };
   } catch (error) {
-    console.error('Error in merchant feed function:', error);
+    console.error('Error generating feed:', error);
+    
+    // If we have a cached feed, return it even if it's expired
+    if (cachedFeed) {
+      console.log('Returning expired cached feed due to error');
+      return {
+        statusCode: 200,
+        headers: {
+          'Content-Type': 'application/xml',
+          'Cache-Control': 'public, max-age=3600',
+        },
+        body: cachedFeed
+      };
+    }
+
     return {
       statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({ 
         message: 'Error generating feed',
         error: error instanceof Error ? error.message : 'Unknown error'
