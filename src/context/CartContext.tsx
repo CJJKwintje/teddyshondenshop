@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import { Product, CartItem, CheckoutData } from '../types/types';
 import { createCheckout } from '../services/shopify';
+import { useCustomer } from './CustomerContext';
 
 interface CartContextType {
   cart: CartItem[];
@@ -16,6 +17,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const { accessToken } = useCustomer();
 
   const addToCart = (product: Product) => {
     setCart((currentCart) => {
@@ -60,7 +62,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
         quantity: item.quantity,
       }));
 
-      const checkout = await createCheckout(lineItems);
+      const checkout = await createCheckout(lineItems, accessToken);
       
       if (!checkout.webUrl) {
         throw new Error('Invalid checkout URL received');

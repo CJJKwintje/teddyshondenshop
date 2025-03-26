@@ -6,6 +6,7 @@ export interface Product {
   category: string;
   variantId: string;
   variantTitle?: string;
+  quantity?: number;
 }
 
 export interface CartItem extends Product {

@@ -92,8 +92,8 @@ export const searchProducts = async (context: string) => {
 
 // Cart API mutations
 const CREATE_CART_MUTATION = `
-  mutation cartCreate {
-    cartCreate {
+  mutation cartCreate($customerAccessToken: String) {
+    cartCreate(input: { buyerIdentity: { customerAccessToken: $customerAccessToken } }) {
       cart {
         id
         checkoutUrl
@@ -143,7 +143,8 @@ const executeWithRetry = async <T>(
 };
 
 export const createCheckout = async (
-  lineItems: { variantId: string; quantity: number }[]
+  lineItems: { variantId: string; quantity: number }[],
+  customerAccessToken?: string | null
 ) => {
   try {
     if (!Array.isArray(lineItems) || lineItems.length === 0) {
@@ -153,7 +154,9 @@ export const createCheckout = async (
     // First create a new cart
     const createCartResult = await executeWithRetry(async () => {
       const response = await shopifyClient
-        .mutation(CREATE_CART_MUTATION, {})
+        .mutation(CREATE_CART_MUTATION, {
+          customerAccessToken
+        })
         .toPromise();
 
       if (!response.data && response.error) {
