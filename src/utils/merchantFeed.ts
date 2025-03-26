@@ -29,6 +29,7 @@ interface ShopifyProduct {
         availableForSale: boolean;
         weight: number;
         weightUnit: string;
+        barcode: string;
       };
     }>;
   };
@@ -76,6 +77,7 @@ const PRODUCTS_QUERY = gql`
                 availableForSale
                 weight
                 weightUnit
+                barcode
               }
             }
           }
@@ -101,6 +103,7 @@ interface ProductFeedItem {
   sale_price: string;
   brand: string;
   shipping_weight: string;
+  gtin: string;
 }
 
 // Helper function to delay execution
@@ -168,6 +171,9 @@ export async function generateMerchantFeed(): Promise<ProductFeedItem[]> {
       // Convert weight to grams (Google Merchant requirement)
       const weightInGrams = weightUnit === 'KILOGRAMS' ? weight * 1000 : weight;
 
+      // Get GTIN from variant barcode
+      const gtin = variant?.barcode || '';
+
       return {
         id: node.id.split('/').pop(),
         title: node.title,
@@ -178,7 +184,8 @@ export async function generateMerchantFeed(): Promise<ProductFeedItem[]> {
         price: isOnSale ? `${compareAtPrice.toFixed(2)} EUR` : `${price.toFixed(2)} EUR`,
         sale_price: isOnSale ? `${price.toFixed(2)} EUR` : '',
         brand: node.vendor,
-        shipping_weight: `${weightInGrams}g`
+        shipping_weight: `${weightInGrams}g`,
+        gtin
       };
     });
   } catch (error) {
@@ -207,6 +214,7 @@ export function convertToXML(products: ProductFeedItem[]): string {
       product.sale_price ? `    <g:sale_price>${product.sale_price}</g:sale_price>` : '',
       `    <g:brand>${escapeXml(product.brand)}</g:brand>`,
       `    <g:shipping_weight>${product.shipping_weight}</g:shipping_weight>`,
+      product.gtin ? `    <g:gtin>${product.gtin}</g:gtin>` : '',
       '  </item>'
     ].filter(Boolean).join('\n');
 
