@@ -4,6 +4,47 @@ import { stripHtml } from 'string-strip-html';
 
 const PRODUCTS_PER_PAGE = 250;
 
+interface ShopifyProduct {
+  id: string;
+  title: string;
+  description: string;
+  handle: string;
+  vendor: string;
+  images: {
+    edges: Array<{
+      node: {
+        originalSrc: string;
+      };
+    }>;
+  };
+  variants: {
+    edges: Array<{
+      node: {
+        price: {
+          amount: string;
+        };
+        compareAtPrice: {
+          amount: string;
+        };
+        availableForSale: boolean;
+      };
+    }>;
+  };
+}
+
+interface ProductsQueryResponse {
+  products: {
+    edges: Array<{
+      node: ShopifyProduct;
+      cursor: string;
+    }>;
+    pageInfo: {
+      hasNextPage: boolean;
+      endCursor: string;
+    };
+  };
+}
+
 const PRODUCTS_QUERY = gql`
   query GetProductsForFeed($cursor: String) {
     products(first: ${PRODUCTS_PER_PAGE}, after: $cursor) {
@@ -57,25 +98,47 @@ interface ProductFeedItem {
   brand: string;
 }
 
+// Helper function to delay execution
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 async function fetchAllProducts(): Promise<any[]> {
   let allProducts: any[] = [];
   let hasNextPage = true;
   let cursor: string | null = null;
 
   while (hasNextPage) {
-    const { data, error } = await shopifyClient.query(PRODUCTS_QUERY, { cursor });
+    try {
+      const result: { data?: ProductsQueryResponse; error?: Error } = await shopifyClient.query<ProductsQueryResponse>(PRODUCTS_QUERY, { cursor });
 
-    if (error) {
-      console.error('Error fetching products for feed:', error);
+      if (result.error) {
+        console.error('Error fetching products for feed:', result.error);
+        throw result.error;
+      }
+
+      if (!result.data) {
+        throw new Error('No data received from Shopify');
+      }
+
+      allProducts = [...allProducts, ...result.data.products.edges];
+      hasNextPage = result.data.products.pageInfo.hasNextPage;
+      cursor = result.data.products.pageInfo.endCursor;
+
+      // Log progress
+      console.log(`Fetched ${allProducts.length} products so far...`);
+
+      // Add a small delay between requests to prevent rate limiting
+      if (hasNextPage) {
+        await delay(1000); // 1 second delay between requests
+      }
+    } catch (error) {
+      console.error('Error during pagination:', error);
+      // If we have products, return what we have instead of failing completely
+      if (allProducts.length > 0) {
+        console.log(`Returning ${allProducts.length} products despite error`);
+        return allProducts;
+      }
       throw error;
     }
-
-    allProducts = [...allProducts, ...data.products.edges];
-    hasNextPage = data.products.pageInfo.hasNextPage;
-    cursor = data.products.pageInfo.endCursor;
-
-    // Log progress
-    console.log(`Fetched ${allProducts.length} products so far...`);
   }
 
   console.log(`Finished fetching all ${allProducts.length} products`);

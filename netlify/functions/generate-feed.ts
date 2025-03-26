@@ -23,6 +23,10 @@ const handler: Handler = async (event) => {
     const products = await generateMerchantFeed();
     console.log(`Successfully fetched ${products.length} products`);
 
+    if (products.length === 0) {
+      throw new Error('No products were fetched');
+    }
+
     console.log('Converting to XML...');
     const xml = convertToXML(products);
     console.log('XML conversion complete');
@@ -33,7 +37,13 @@ const handler: Handler = async (event) => {
     fs.writeFileSync(feedPath, xml);
 
     console.log('Feed file written successfully');
-    return { statusCode: 200, body: 'Feed generated successfully' };
+    return { 
+      statusCode: 200, 
+      body: JSON.stringify({ 
+        message: 'Feed generated successfully',
+        productCount: products.length
+      })
+    };
   } catch (error) {
     console.error('Error generating feed:', error);
     return {

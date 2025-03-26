@@ -18,15 +18,11 @@
   status = 200
   force = true
 
-[[redirects]]
-  from = "/api/trigger-feed"
-  to = "/.netlify/functions/trigger-feed"
-  status = 200
-  force = true
-
 [functions]
   node_bundler = "esbuild"
 
 [functions.generate-feed]
   schedule = "0 */1 * * *"  # Run every hour
-  timeout = 60
+  timeout = 10
+  memory = 1024  # Increase memory allocation to 1GB
+  background = true  # Allow the function to run in the background
