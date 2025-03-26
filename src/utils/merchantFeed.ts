@@ -10,6 +10,8 @@ interface ShopifyProduct {
   description: string;
   handle: string;
   vendor: string;
+  weight: number;
+  weightUnit: string;
   images: {
     edges: Array<{
       node: {
@@ -27,6 +29,8 @@ interface ShopifyProduct {
           amount: string;
         };
         availableForSale: boolean;
+        weight: number;
+        weightUnit: string;
       };
     }>;
   };
@@ -55,6 +59,8 @@ const PRODUCTS_QUERY = gql`
           description
           handle
           vendor
+          weight
+          weightUnit
           images(first: 1) {
             edges {
               node {
@@ -72,6 +78,8 @@ const PRODUCTS_QUERY = gql`
                   amount
                 }
                 availableForSale
+                weight
+                weightUnit
               }
             }
           }
@@ -96,6 +104,7 @@ interface ProductFeedItem {
   price: string;
   sale_price: string;
   brand: string;
+  shipping_weight: string;
 }
 
 // Helper function to delay execution
@@ -156,6 +165,13 @@ export async function generateMerchantFeed(): Promise<ProductFeedItem[]> {
       const compareAtPrice = parseFloat(variant?.compareAtPrice?.amount || '0');
       const isOnSale = compareAtPrice > price;
 
+      // Get weight from variant or product, default to 0 if not available
+      const weight = variant?.weight || node.weight || 0;
+      const weightUnit = variant?.weightUnit || node.weightUnit || 'KILOGRAMS';
+      
+      // Convert weight to grams (Google Merchant requirement)
+      const weightInGrams = weightUnit === 'KILOGRAMS' ? weight * 1000 : weight;
+
       return {
         id: node.id.split('/').pop(),
         title: node.title,
@@ -165,7 +181,8 @@ export async function generateMerchantFeed(): Promise<ProductFeedItem[]> {
         availability: variant?.availableForSale ? 'in stock' : 'out of stock',
         price: isOnSale ? `${compareAtPrice.toFixed(2)} EUR` : `${price.toFixed(2)} EUR`,
         sale_price: isOnSale ? `${price.toFixed(2)} EUR` : '',
-        brand: node.vendor
+        brand: node.vendor,
+        shipping_weight: `${weightInGrams}g`
       };
     });
   } catch (error) {
@@ -193,6 +210,7 @@ export function convertToXML(products: ProductFeedItem[]): string {
       `    <g:price>${product.price}</g:price>`,
       product.sale_price ? `    <g:sale_price>${product.sale_price}</g:sale_price>` : '',
       `    <g:brand>${escapeXml(product.brand)}</g:brand>`,
+      `    <g:shipping_weight>${product.shipping_weight}</g:shipping_weight>`,
       '  </item>'
     ].filter(Boolean).join('\n');
 
