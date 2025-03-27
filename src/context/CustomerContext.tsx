@@ -23,6 +23,7 @@ interface CustomerContextType {
   logout: () => void;
   updateCustomer: (data: Partial<Customer>) => Promise<void>;
   recoverPassword: (email: string) => Promise<void>;
+  fetchCustomerData: (token: string) => Promise<void>;
 }
 
 const CustomerContext = createContext<CustomerContextType | undefined>(undefined);
@@ -337,6 +338,7 @@ export const CustomerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         logout,
         updateCustomer,
         recoverPassword,
+        fetchCustomerData,
       }}
     >
       {children}

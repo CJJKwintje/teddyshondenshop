@@ -4,6 +4,8 @@ import { useCustomer } from '../context/CustomerContext';
 import { Package, User, MapPin, LogOut, Loader2 } from 'lucide-react';
 import SEO from '../components/SEO';
 import OrdersPage from './account/OrdersPage';
+import AddressesPage from './account/AddressesPage';
+import ProfilePage from './account/ProfilePage';
 
 export default function AccountPage() {
   const { customer, isLoading, logout } = useCustomer();
@@ -29,6 +31,14 @@ export default function AccountPage() {
       <Route
         path="orders"
         element={<OrdersPage />}
+      />
+      <Route
+        path="addresses"
+        element={<AddressesPage />}
+      />
+      <Route
+        path="profile"
+        element={<ProfilePage />}
       />
       <Route
         path="/"

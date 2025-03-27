@@ -90,7 +90,7 @@ export default function OrdersPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-gray-900">
-                        €{formatPrice(parseFloat(order.totalPrice))}
+                        €{formatPrice(Number(order.totalPrice.amount))}
                       </p>
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -131,7 +131,7 @@ export default function OrdersPage() {
                         <div className="text-sm font-medium text-gray-900">
                           €
                           {formatPrice(
-                            parseFloat(item.variant.price.amount) * item.quantity
+                            Number(item.variant.price.amount) * item.quantity
                           )}
                         </div>
                       </div>
