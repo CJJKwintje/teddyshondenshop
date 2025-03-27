@@ -1,8 +1,35 @@
 import React from 'react';
+import Cookies from 'js-cookie';
 
 const GTM_ID = 'GTM-TTT8QLFG';
+const COOKIE_CONSENT_KEY = 'cookie_preferences';
+
+interface CookiePreferences {
+  required: boolean;
+  personalization: boolean;
+  marketing: boolean;
+  analytics: boolean;
+}
+
+const getCookiePreferences = (): CookiePreferences | null => {
+  const savedPreferences = Cookies.get(COOKIE_CONSENT_KEY);
+  if (!savedPreferences) return null;
+  try {
+    return JSON.parse(savedPreferences);
+  } catch (error) {
+    console.error('Error parsing cookie preferences:', error);
+    return null;
+  }
+};
 
 export function GoogleTagManagerScript() {
+  const preferences = getCookiePreferences();
+  
+  // Only load GTM if user has accepted analytics cookies
+  if (!preferences?.analytics) {
+    return null;
+  }
+
   return (
     <script
       dangerouslySetInnerHTML={{
@@ -19,6 +46,13 @@ export function GoogleTagManagerScript() {
 }
 
 export function GoogleTagManagerNoScript() {
+  const preferences = getCookiePreferences();
+  
+  // Only load GTM if user has accepted analytics cookies
+  if (!preferences?.analytics) {
+    return null;
+  }
+
   return (
     <noscript>
       <iframe
@@ -37,6 +71,13 @@ if (typeof window !== 'undefined') {
 }
 
 export const GTMPageView = (url: string) => {
+  const preferences = getCookiePreferences();
+  
+  // Only track page views if user has accepted analytics cookies
+  if (!preferences?.analytics) {
+    return null;
+  }
+
   interface PageViewProps {
     event: string;
     page: string;
