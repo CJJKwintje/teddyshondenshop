@@ -15,6 +15,7 @@ const SEARCH_SUGGESTIONS_QUERY = gql`
       edges {
         node {
           id
+          handle
           title
           productType
           images(first: 1) {
@@ -94,9 +95,8 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen }: NavbarProps) {
     }
   };
 
-  const handleSuggestionClick = (productId: string) => {
-    const id = productId.split('/').pop();
-    navigate(`/product/${id}`);
+  const handleSuggestionClick = (productHandle: string) => {
+    navigate(`/product/${productHandle}`);
     setSearchTerm('');
     setShowSuggestions(false);
     setIsSearchExpanded(false);
@@ -180,7 +180,7 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen }: NavbarProps) {
                   {suggestionsData.products.edges.map(({ node: product }: any) => (
                     <button
                       key={product.id}
-                      onClick={() => handleSuggestionClick(product.id)}
+                      onClick={() => handleSuggestionClick(product.handle)}
                       className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
                     >
                       <div className="w-12 h-12 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">

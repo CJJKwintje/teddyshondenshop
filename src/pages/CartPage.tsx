@@ -17,8 +17,16 @@ const CartPage: React.FC = () => {
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingCost = subtotal >= 59 ? 0 : 6.95;
   const total = subtotal + shippingCost;
+  const MINIMUM_ORDER_AMOUNT = 15;
+  const isBelowMinimum = subtotal < MINIMUM_ORDER_AMOUNT;
+  const remainingAmount = MINIMUM_ORDER_AMOUNT - subtotal;
 
   const handleCheckout = async (retry = false) => {
+    if (isBelowMinimum) {
+      setError(`Je bestelling moet minimaal €${MINIMUM_ORDER_AMOUNT} bedragen om af te kunnen rekenen.`);
+      return;
+    }
+
     if (retry) {
       setRetrying(true);
     }
@@ -175,6 +183,11 @@ const CartPage: React.FC = () => {
                   Nog €{formatPrice(59 - subtotal)} tot gratis verzending
                 </p>
               )}
+              {isBelowMinimum && (
+                <p className="text-sm text-red-600">
+                  Nog €{formatPrice(remainingAmount)} nodig voor minimale bestelling
+                </p>
+              )}
               <div className="border-t pt-3">
                 <div className="flex justify-between font-bold">
                   <span>Totaal</span>
@@ -210,14 +223,14 @@ const CartPage: React.FC = () => {
             
             <button
               onClick={() => handleCheckout(false)}
-              disabled={isLoading}
+              disabled={isLoading || isBelowMinimum}
               className={`w-full bg-[#63D7B2] text-white py-3 rounded-lg transition-colors ${
-                isLoading
+                isLoading || isBelowMinimum
                   ? 'opacity-75 cursor-not-allowed'
                   : 'hover:bg-[#47C09A]'
               }`}
             >
-              {isLoading ? 'Bezig met laden...' : 'Afrekenen'}
+              {isLoading ? 'Bezig met laden...' : isBelowMinimum ? `Minimaal €${MINIMUM_ORDER_AMOUNT} nodig` : 'Afrekenen'}
             </button>
             <p className="text-sm text-gray-600 mt-4 text-center">
               Veilig betalen met iDEAL, creditcard of PayPal
