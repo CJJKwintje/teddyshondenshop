@@ -1,24 +1,44 @@
 import { Truck, Timer, MessageCircleHeart } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 export default function BenefitsBar() {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const benefits = [
+    {
+      icon: <Truck size={18} />,
+      text: <span className="text-xs"><span className="font-bold">Gratis verzending</span> vanaf €59</span>
+    },
+    {
+      icon: <Timer size={18} />,
+      text: <span className="text-xs">Voor 17:00 besteld, dezelfde dag verzonden</span>
+    },
+    {
+      icon: <MessageCircleHeart size={18} />,
+      text: <span className="text-xs">Vragen? Wij helpen graag!</span>
+    }
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % benefits.length);
+    }, 5000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div className="bg-gray-100 text-black">
       <div className="container mx-auto px-4">
+        {/* Desktop version */}
         <div className="hidden md:flex justify-between items-center py-1">
           <div className="flex-1" />
           <div className="flex items-center gap-12">
-            <div className="flex items-center gap-2">
-              <Truck size={18} />
-              <span className="text-xs"><span className="font-bold">Gratis verzending</span> vanaf €59</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Timer size={18} />
-              <span className="text-xs">Voor 17:00 besteld, dezelfde dag verzonden</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <MessageCircleHeart size={18} />
-              <span className="text-xs">Vragen? Wij helpen graag!</span>
-            </div>
+            {benefits.map((benefit, index) => (
+              <div key={index} className="flex items-center gap-2">
+                {benefit.icon}
+                {benefit.text}
+              </div>
+            ))}
           </div>
           <div className="flex-1 flex justify-end">
             <a
@@ -36,6 +56,14 @@ export default function BenefitsBar() {
                 className="h-8 w-auto"
               />
             </a>
+          </div>
+        </div>
+
+        {/* Mobile version */}
+        <div className="md:hidden py-2">
+          <div className="flex items-center justify-center gap-2">
+            {benefits[currentSlide].icon}
+            {benefits[currentSlide].text}
           </div>
         </div>
       </div>
