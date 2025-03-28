@@ -442,7 +442,7 @@ export default function ProductsPage() {
                         className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
                         style={{ 
                           backgroundImage: `url(${imageUrl})`,
-                          filter: selectedCategory === key ? 'brightness(0.5)' : 'brightness(0.7)'
+                          filter: selectedCategory === key ? 'brightness(0.6)' : 'brightness(0.8)'
                         }}
                       />
                     ) : (

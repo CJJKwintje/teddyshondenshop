@@ -124,8 +124,8 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen }: NavbarProps) {
       <BenefitsBar />
 
       {/* Main Navigation */}
-      <div className="container mx-auto px-4 sticky top-0 z-50">
-        <div className="flex justify-between items-center h-20 relative">
+      <div className="container mx-auto px-5 sticky top-0 z-50">
+        <div className="flex justify-between items-center h-16 relative">
           {/* Left section with menu button and logo */}
           <div className={`flex items-center transition-all duration-300 ease-in-out ${
             isSearchExpanded ? 'w-0 opacity-0 overflow-hidden md:w-auto md:opacity-100' : 'w-auto opacity-100'
@@ -138,7 +138,7 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen }: NavbarProps) {
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
             <Link to="/" className="flex items-center">
-              <img src={logo} alt="Happy Huisdier Logo" className="h-16 w-auto" />
+              <img src={logo} alt="Happy Huisdier Logo" className="h-12 w-auto" />
             </Link>
           </div>
 
@@ -365,11 +365,11 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen }: NavbarProps) {
                 <div key={category.mainCategory} className="border-b border-gray-100 last:border-b-0">
                   <button
                     onClick={() => handleCategoryClick(category.mainCategory)}
-                    className="w-full px-4 py-2 flex items-center justify-between text-gray-700"
+                    className="w-full px-4 py-5 flex items-center justify-between text-gray-900"
                   >
-                    <span className="font-medium">{category.mainCategory}</span>
+                    <span className="font-semibold">{category.mainCategory}</span>
                     <ChevronDown
-                      size={16}
+                      size={20}
                       className={`transform transition-transform duration-300 ${
                         openCategory === category.mainCategory ? 'rotate-180' : ''
                       }`}

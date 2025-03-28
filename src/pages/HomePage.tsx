@@ -9,12 +9,12 @@ import { formatPrice } from '../utils/formatPrice';
 import { getHomepageBanners, getBrands } from '../services/contentful';
 import type { HomepageBanner, Brand } from '../services/contentful';
 import BrandLogos from '../components/BrandLogos';
-import CategorySlider from '../components/CategorySlider';
+import CategoryGrid from '../components/CategoryGrid';
 import { subscribeToNewsletter } from '../services/shopify';
 
 const PRODUCTS_QUERY = gql`
   query GetProducts {
-    products(first: 20) {
+    products(first: 8, sortKey: BEST_SELLING) {
       edges {
         node {
           id
@@ -177,11 +177,9 @@ const HomePage: React.FC = () => {
     loadBrands();
   }, []);
 
-  const randomProducts = useMemo(() => {
+  const bestSellingProducts = useMemo(() => {
     if (!data?.products?.edges) return [];
-    const products = data.products.edges.map(({ node }: any) => node);
-    const shuffled = [...products].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, 8);
+    return data.products.edges.map(({ node }: any) => node);
   }, [data?.products?.edges]);
 
   const handleNewsletterSubmit = async (e: React.FormEvent) => {
@@ -248,7 +246,7 @@ const HomePage: React.FC = () => {
                     to={banners[0]?.buttonLink || "/categorie/hondenvoeding"}
                     className="inline-flex bg-white text-gray-900 px-4 md:px-6 py-2 md:py-3 rounded-full font-medium hover:bg-gray-50 transition-colors w-fit text-sm md:text-base"
                   >
-                    {banners[0]?.buttonText || "Shop nu"}
+                    {banners[0]?.buttonText || "Ontdek ons assortiment"}
                   </Link>
                 </div>
               </div>
@@ -266,17 +264,17 @@ const HomePage: React.FC = () => {
                   />
                 )}
                 <div className="relative z-10 p-6 md:p-8 h-full flex flex-col justify-center bg-gradient-to-r from-black/50 to-transparent">
-                  <h2 className="text-xl md:text-2xl font-bold text-white mb-4">
-                    {banners[1]?.title || "NIEUW BUDDY"}
+                  <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">
+                    {banners[1]?.title || "SNACKS & TRAINING"}
                   </h2>
                   {banners[1]?.description && (
                     <p className="text-lg text-white mb-6">{banners[1].description}</p>
                   )}
                   <Link
-                    to={banners[1]?.buttonLink || "/categorie/hondenvoeding"}
+                    to={banners[1]?.buttonLink || "/categorie/hondensnacks"}
                     className="inline-flex bg-white text-gray-900 px-4 md:px-6 py-2 md:py-3 rounded-full font-medium hover:bg-gray-50 transition-colors w-fit text-sm md:text-base"
                   >
-                    {banners[1]?.buttonText || "Shop nu"}
+                    {banners[1]?.buttonText || "Bekijk snacks"}
                   </Link>
                 </div>
               </div>
@@ -284,13 +282,11 @@ const HomePage: React.FC = () => {
           )}
         </section>
 
-        {/* Category Slider - All Screen Sizes */}
-        <div className="mb-12">
-          <CategorySlider categories={categories.map(category => ({
-            ...category,
-            overlay: 'bg-black/30'
-          }))} />
-        </div>
+        {/* Categories Grid */}
+        <section className="mb-12">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Ontdek onze categorieën</h2>
+          <CategoryGrid />
+        </section>
 
         {/* Brand Logos */}
         {!brandsLoading && brands.length > 0 && (
@@ -299,9 +295,9 @@ const HomePage: React.FC = () => {
 
         {/* Featured Products */}
         <section className="mb-12">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl md:text-2xl font-semibold text-gray-800">
-              Teddy's favorieten
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-6">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+              Het beste assortiment voor jouw hond
             </h2>
             <Link
               to="/producten"
@@ -321,7 +317,7 @@ const HomePage: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-              {randomProducts.map((product: any) => {
+              {bestSellingProducts.map((product: any) => {
                 const productId = product.id.split('/').pop();
                 const variants = product.variants.edges;
                 const firstVariant = variants[0]?.node;
