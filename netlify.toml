@@ -17,6 +17,34 @@
   functionsPort = 9999
   timeout = 60
 
+# Handle MIME types for assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Content-Type = "application/javascript"
+    X-Content-Type-Options = "nosniff"
+
+# Handle MIME types for JavaScript modules
+[[headers]]
+  for = "/assets/*.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+    X-Content-Type-Options = "nosniff"
+
+# Handle MIME types for CSS
+[[headers]]
+  for = "/assets/*.css"
+  [headers.values]
+    Content-Type = "text/css"
+    X-Content-Type-Options = "nosniff"
+
+# Handle MIME types for images
+[[headers]]
+  for = "/assets/*.{png,jpg,jpeg,gif,svg,ico}"
+  [headers.values]
+    Content-Type = "image/*"
+    X-Content-Type-Options = "nosniff"
+
 # Prevent automatic trailing slash addition
 [[redirects]]
   from = "/categorie/*/"
