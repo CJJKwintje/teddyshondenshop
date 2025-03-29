@@ -33,7 +33,11 @@ export default defineConfig({
     },
     target: 'esnext',
     modulePreload: true,
-    cssCodeSplit: true
+    cssCodeSplit: true,
+    outDir: 'dist',
+    assetsDir: 'assets',
+    emptyOutDir: true,
+    sourcemap: true
   },
   server: {
     proxy: {

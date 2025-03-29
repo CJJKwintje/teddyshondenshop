@@ -17,49 +17,45 @@
   functionsPort = 9999
   timeout = 60
 
-# Handle MIME types for JavaScript modules
+# Handle JavaScript modules
 [[headers]]
   for = "/assets/*.js"
   [headers.values]
-    Content-Type = "text/javascript"
+    Content-Type = "application/javascript"
     X-Content-Type-Options = "nosniff"
     Cache-Control = "public, max-age=31536000"
+    Access-Control-Allow-Origin = "*"
 
-# Handle MIME types for CSS
+# Handle CSS
 [[headers]]
   for = "/assets/*.css"
   [headers.values]
     Content-Type = "text/css"
     X-Content-Type-Options = "nosniff"
     Cache-Control = "public, max-age=31536000"
+    Access-Control-Allow-Origin = "*"
 
-# Handle MIME types for images
+# Handle images
 [[headers]]
   for = "/assets/*.{png,jpg,jpeg,gif,svg,ico}"
   [headers.values]
     Content-Type = "image/*"
     X-Content-Type-Options = "nosniff"
     Cache-Control = "public, max-age=31536000"
+    Access-Control-Allow-Origin = "*"
 
-# Prevent automatic trailing slash addition
+# Handle SPA routes first
 [[redirects]]
-  from = "/categorie/*/"
-  to = "/categorie/:splat"
-  status = 301
+  from = "/*"
+  to = "/index.html"
+  status = 200
   force = true
 
-# Handle category pages
+# Handle pre-rendered pages
 [[redirects]]
   from = "/categorie/*"
   to = "/categorie/:splat/index.html"
   status = 200
-  force = true
-
-# Handle other pre-rendered pages
-[[redirects]]
-  from = "/over-ons/"
-  to = "/over-ons"
-  status = 301
   force = true
 
 [[redirects]]
@@ -69,21 +65,9 @@
   force = true
 
 [[redirects]]
-  from = "/algemene-voorwaarden/"
-  to = "/algemene-voorwaarden"
-  status = 301
-  force = true
-
-[[redirects]]
   from = "/algemene-voorwaarden"
   to = "/algemene-voorwaarden/index.html"
   status = 200
-  force = true
-
-[[redirects]]
-  from = "/privacy-policy/"
-  to = "/privacy-policy"
-  status = 301
   force = true
 
 [[redirects]]
@@ -93,22 +77,40 @@
   force = true
 
 [[redirects]]
-  from = "/contact/"
-  to = "/contact"
-  status = 301
-  force = true
-
-[[redirects]]
   from = "/contact"
   to = "/contact/index.html"
   status = 200
   force = true
 
-# Handle SPA routes
+# Handle trailing slashes
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+  from = "/categorie/*/"
+  to = "/categorie/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/over-ons/"
+  to = "/over-ons"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/algemene-voorwaarden/"
+  to = "/algemene-voorwaarden"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/privacy-policy/"
+  to = "/privacy-policy"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/contact/"
+  to = "/contact"
+  status = 301
   force = true
 
 # Handle merchant feed
