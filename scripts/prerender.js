@@ -9,7 +9,7 @@ import { Server } from 'node-static';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Define all routes to pre-render
+// Define all routes to pre-render (without trailing slashes)
 const routes = [
   // Main pages
   '/',
@@ -51,7 +51,7 @@ const routes = [
   // Hondenkleding subcategories
   '/categorie/hondenkleding/hondenjassen',
   '/categorie/hondenkleding/hondensokken'
-].map(route => route.endsWith('/') ? route.slice(0, -1) : route);
+];
 
 async function prerender() {
   console.log('Starting pre-rendering...');
@@ -123,14 +123,13 @@ async function prerender() {
       const html = await page.content();
       
       // Create the directory if it doesn't exist
-      const cleanRoute = route.endsWith('/') ? route.slice(0, -1) : route;
-      const dir = path.join(__dirname, '..', 'dist', cleanRoute === '/' ? '' : cleanRoute);
-      if (cleanRoute !== '/') {
+      const dir = path.join(__dirname, '..', 'dist', route === '/' ? '' : route);
+      if (route !== '/') {
         fs.mkdirSync(dir, { recursive: true });
       }
       
       // Write the pre-rendered HTML to a file
-      const filePath = cleanRoute === '/' 
+      const filePath = route === '/' 
         ? path.join(__dirname, '../dist/index.html')
         : path.join(dir, 'index.html');
       

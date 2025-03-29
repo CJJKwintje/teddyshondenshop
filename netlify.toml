@@ -17,11 +17,24 @@
   functionsPort = 9999
   timeout = 60
 
-# Handle pre-rendered pages
+# Handle category pages without trailing slashes
+[[redirects]]
+  from = "/categorie/*/"
+  to = "/categorie/:splat"
+  status = 301
+  force = true
+
 [[redirects]]
   from = "/categorie/*"
   to = "/categorie/:splat/index.html"
   status = 200
+
+# Handle other pre-rendered pages
+[[redirects]]
+  from = "/over-ons/"
+  to = "/over-ons"
+  status = 301
+  force = true
 
 [[redirects]]
   from = "/over-ons"
@@ -29,14 +42,32 @@
   status = 200
 
 [[redirects]]
+  from = "/algemene-voorwaarden/"
+  to = "/algemene-voorwaarden"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/algemene-voorwaarden"
   to = "/algemene-voorwaarden/index.html"
   status = 200
 
 [[redirects]]
+  from = "/privacy-policy/"
+  to = "/privacy-policy"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/privacy-policy"
   to = "/privacy-policy/index.html"
   status = 200
+
+[[redirects]]
+  from = "/contact/"
+  to = "/contact"
+  status = 301
+  force = true
 
 [[redirects]]
   from = "/contact"
