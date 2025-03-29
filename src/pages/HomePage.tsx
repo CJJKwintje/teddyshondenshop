@@ -207,12 +207,12 @@ const HomePage: React.FC = () => {
     <main className="bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         <SEO
-          title="Teddy's hondenshop - Het beste voor jouw hond, snel thuisbezorgd!"
+          title="Teddy's hondenshop"
           description="De beste producten voor jouw hond, direct bij jou thuisbezorgd. Ontdek ons uitgebreide assortiment van voeding, snacks, speeltjes en training"
           canonical="https://teddyshondenshop.nl"
           type="website"
           image="https://teddyshondenshop.nl/og-image.jpg"
-          imageAlt="Teddy's Hondenshop - Het beste voor jouw hond, snel thuisbezorgd!"
+          imageAlt="Teddy's Hondenshop - Premium hondenproducten"
         />
 
         <section className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-12">

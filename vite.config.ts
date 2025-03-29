@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 export default defineConfig({
-  base: '/',
   plugins: [
     react(),
     viteStaticCopy({
@@ -23,21 +22,6 @@ export default defineConfig({
       include: [/node_modules/],
       transformMixedEsModules: true,
     },
-    rollupOptions: {
-      output: {
-        manualChunks: undefined,
-        assetFileNames: 'assets/[name]-[hash][extname]',
-        entryFileNames: 'assets/[name]-[hash].js',
-        chunkFileNames: 'assets/[name]-[hash].js'
-      }
-    },
-    target: 'esnext',
-    modulePreload: true,
-    cssCodeSplit: true,
-    outDir: 'dist',
-    assetsDir: 'assets',
-    emptyOutDir: true,
-    sourcemap: true
   },
   server: {
     proxy: {

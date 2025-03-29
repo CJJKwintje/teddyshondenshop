@@ -17,34 +17,7 @@
   functionsPort = 9999
   timeout = 60
 
-# Handle JavaScript modules
-[[headers]]
-  for = "/assets/*.js"
-  [headers.values]
-    Content-Type = "application/javascript"
-    X-Content-Type-Options = "nosniff"
-    Cache-Control = "public, max-age=31536000"
-    Access-Control-Allow-Origin = "*"
-
-# Handle CSS
-[[headers]]
-  for = "/assets/*.css"
-  [headers.values]
-    Content-Type = "text/css"
-    X-Content-Type-Options = "nosniff"
-    Cache-Control = "public, max-age=31536000"
-    Access-Control-Allow-Origin = "*"
-
-# Handle images
-[[headers]]
-  for = "/assets/*.{png,jpg,jpeg,gif,svg,ico}"
-  [headers.values]
-    Content-Type = "image/*"
-    X-Content-Type-Options = "nosniff"
-    Cache-Control = "public, max-age=31536000"
-    Access-Control-Allow-Origin = "*"
-
-# Handle trailing slashes first
+# Handle category pages without trailing slashes
 [[redirects]]
   from = "/categorie/*/"
   to = "/categorie/:splat"
@@ -52,10 +25,21 @@
   force = true
 
 [[redirects]]
+  from = "/categorie/*"
+  to = "/categorie/:splat/index.html"
+  status = 200
+
+# Handle other pre-rendered pages
+[[redirects]]
   from = "/over-ons/"
   to = "/over-ons"
   status = 301
   force = true
+
+[[redirects]]
+  from = "/over-ons"
+  to = "/over-ons/index.html"
+  status = 200
 
 [[redirects]]
   from = "/algemene-voorwaarden/"
@@ -64,10 +48,20 @@
   force = true
 
 [[redirects]]
+  from = "/algemene-voorwaarden"
+  to = "/algemene-voorwaarden/index.html"
+  status = 200
+
+[[redirects]]
   from = "/privacy-policy/"
   to = "/privacy-policy"
   status = 301
   force = true
+
+[[redirects]]
+  from = "/privacy-policy"
+  to = "/privacy-policy/index.html"
+  status = 200
 
 [[redirects]]
   from = "/contact/"
@@ -75,48 +69,21 @@
   status = 301
   force = true
 
-# Handle pre-rendered pages
-[[redirects]]
-  from = "/categorie/*"
-  to = "/categorie/:splat/index.html"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/over-ons"
-  to = "/over-ons/index.html"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/algemene-voorwaarden"
-  to = "/algemene-voorwaarden/index.html"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/privacy-policy"
-  to = "/privacy-policy/index.html"
-  status = 200
-  force = true
-
 [[redirects]]
   from = "/contact"
   to = "/contact/index.html"
   status = 200
-  force = true
+
+# Handle SPA routes
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
 
 # Handle merchant feed
 [[redirects]]
   from = "/feeds/merchant-products.xml"
   to = "/.netlify/functions/merchant-feed"
-  status = 200
-  force = true
-
-# Handle SPA routes last
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
   status = 200
   force = true
 
