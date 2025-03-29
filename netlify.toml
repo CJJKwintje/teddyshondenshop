@@ -16,6 +16,13 @@
 
 [[redirects]]
   from = "/*"
+  to = "https://teddyshondenshop.nl/:splat"
+  status = 301
+  force = true
+  conditions = { Host = "www.teddyshondenshop.nl" }
+
+[[redirects]]
+  from = "/*"
   to = "/index.html"
   status = 200
 
