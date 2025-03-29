@@ -6,6 +6,8 @@
 [build.environment]
   NODE_VERSION = "18"
   NPM_FLAGS = "--no-optional"
+  PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "false"
+  PUPPETEER_EXECUTABLE_PATH = "/opt/buildhome/.cache/puppeteer/chrome/linux-134.0.6998.35/chrome-linux/chrome"
 
 [dev]
   targetPort = 5173
