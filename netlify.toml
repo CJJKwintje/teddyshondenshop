@@ -17,19 +17,17 @@
   functionsPort = 9999
   timeout = 60
 
-# Prevent automatic trailing slash addition
+# Handle category pages without trailing slashes
 [[redirects]]
   from = "/categorie/*/"
   to = "/categorie/:splat"
   status = 301
   force = true
 
-# Handle category pages
 [[redirects]]
   from = "/categorie/*"
   to = "/categorie/:splat/index.html"
   status = 200
-  force = true
 
 # Handle other pre-rendered pages
 [[redirects]]
@@ -42,7 +40,6 @@
   from = "/over-ons"
   to = "/over-ons/index.html"
   status = 200
-  force = true
 
 [[redirects]]
   from = "/algemene-voorwaarden/"
@@ -54,7 +51,6 @@
   from = "/algemene-voorwaarden"
   to = "/algemene-voorwaarden/index.html"
   status = 200
-  force = true
 
 [[redirects]]
   from = "/privacy-policy/"
@@ -66,7 +62,6 @@
   from = "/privacy-policy"
   to = "/privacy-policy/index.html"
   status = 200
-  force = true
 
 [[redirects]]
   from = "/contact/"
@@ -78,14 +73,12 @@
   from = "/contact"
   to = "/contact/index.html"
   status = 200
-  force = true
 
 # Handle SPA routes
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-  force = true
 
 # Handle merchant feed
 [[redirects]]
