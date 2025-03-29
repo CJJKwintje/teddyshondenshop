@@ -26,9 +26,14 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: undefined,
-        assetFileNames: 'assets/[name]-[hash][extname]'
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js'
       }
-    }
+    },
+    target: 'esnext',
+    modulePreload: true,
+    cssCodeSplit: true
   },
   server: {
     proxy: {

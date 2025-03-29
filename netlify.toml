@@ -17,19 +17,13 @@
   functionsPort = 9999
   timeout = 60
 
-# Handle MIME types for assets
-[[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Content-Type = "application/javascript"
-    X-Content-Type-Options = "nosniff"
-
 # Handle MIME types for JavaScript modules
 [[headers]]
   for = "/assets/*.js"
   [headers.values]
-    Content-Type = "application/javascript"
+    Content-Type = "text/javascript"
     X-Content-Type-Options = "nosniff"
+    Cache-Control = "public, max-age=31536000"
 
 # Handle MIME types for CSS
 [[headers]]
@@ -37,6 +31,7 @@
   [headers.values]
     Content-Type = "text/css"
     X-Content-Type-Options = "nosniff"
+    Cache-Control = "public, max-age=31536000"
 
 # Handle MIME types for images
 [[headers]]
@@ -44,6 +39,7 @@
   [headers.values]
     Content-Type = "image/*"
     X-Content-Type-Options = "nosniff"
+    Cache-Control = "public, max-age=31536000"
 
 # Prevent automatic trailing slash addition
 [[redirects]]
