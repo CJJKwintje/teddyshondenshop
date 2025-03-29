@@ -51,7 +51,7 @@ const routes = [
   // Hondenkleding subcategories
   '/categorie/hondenkleding/hondenjassen',
   '/categorie/hondenkleding/hondensokken'
-];
+].map(route => route.endsWith('/') ? route.slice(0, -1) : route);
 
 async function prerender() {
   console.log('Starting pre-rendering...');
@@ -106,13 +106,14 @@ async function prerender() {
       const html = await page.content();
       
       // Create the directory if it doesn't exist
-      const dir = path.join(__dirname, '..', 'dist', route === '/' ? '' : route);
-      if (route !== '/') {
+      const cleanRoute = route.endsWith('/') ? route.slice(0, -1) : route;
+      const dir = path.join(__dirname, '..', 'dist', cleanRoute === '/' ? '' : cleanRoute);
+      if (cleanRoute !== '/') {
         fs.mkdirSync(dir, { recursive: true });
       }
       
       // Write the pre-rendered HTML to a file
-      const filePath = route === '/' 
+      const filePath = cleanRoute === '/' 
         ? path.join(__dirname, '../dist/index.html')
         : path.join(dir, 'index.html');
       
