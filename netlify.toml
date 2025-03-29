@@ -44,11 +44,35 @@
     Cache-Control = "public, max-age=31536000"
     Access-Control-Allow-Origin = "*"
 
-# Handle SPA routes first
+# Handle trailing slashes first
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+  from = "/categorie/*/"
+  to = "/categorie/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/over-ons/"
+  to = "/over-ons"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/algemene-voorwaarden/"
+  to = "/algemene-voorwaarden"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/privacy-policy/"
+  to = "/privacy-policy"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/contact/"
+  to = "/contact"
+  status = 301
   force = true
 
 # Handle pre-rendered pages
@@ -82,41 +106,17 @@
   status = 200
   force = true
 
-# Handle trailing slashes
-[[redirects]]
-  from = "/categorie/*/"
-  to = "/categorie/:splat"
-  status = 301
-  force = true
-
-[[redirects]]
-  from = "/over-ons/"
-  to = "/over-ons"
-  status = 301
-  force = true
-
-[[redirects]]
-  from = "/algemene-voorwaarden/"
-  to = "/algemene-voorwaarden"
-  status = 301
-  force = true
-
-[[redirects]]
-  from = "/privacy-policy/"
-  to = "/privacy-policy"
-  status = 301
-  force = true
-
-[[redirects]]
-  from = "/contact/"
-  to = "/contact"
-  status = 301
-  force = true
-
 # Handle merchant feed
 [[redirects]]
   from = "/feeds/merchant-products.xml"
   to = "/.netlify/functions/merchant-feed"
+  status = 200
+  force = true
+
+# Handle SPA routes last
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
   status = 200
   force = true
 
