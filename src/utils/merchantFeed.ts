@@ -1,5 +1,5 @@
 import { gql } from 'urql';
-import { shopifyClient } from '../services/shopify';
+import { shopifyClient } from '../services/shopify.js';
 import { stripHtml } from 'string-strip-html';
 
 const PRODUCTS_PER_PAGE = 250;
