@@ -42,6 +42,7 @@ const baseUrl = 'https://teddyshondenshop.nl';
 // Define your static routes with their priorities and update frequencies
 const staticRoutes = [
   { path: '/', priority: '1.0', changefreq: 'daily' },
+  { path: '/veelgestelde-vragen', priority: '0.8', changefreq: 'weekly' },
 ];
 
 async function fetchAllProducts() {

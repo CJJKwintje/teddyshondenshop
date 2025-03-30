@@ -113,7 +113,8 @@ async function prerender() {
         // Check if the page has meaningful content
         const hasContent = document.querySelector('.prose') || 
                          document.querySelector('.grid') ||
-                         document.querySelector('.container');
+                         document.querySelector('.container') ||
+                         document.querySelector('.faq-content');
         return hasContent && hasContent.textContent.length > 0;
       }, { timeout: 10000 });
       

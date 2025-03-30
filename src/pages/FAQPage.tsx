@@ -1,35 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { getFAQPage } from '../services/contentful';
+import React, { useState } from 'react';
+import { useFAQ } from '../hooks/useFAQ';
 import { FAQPage as FAQPageType } from '../types/content';
 import ContentfulRichText from '../components/content/ContentfulRichText';
 import SEO from '../components/SEO';
 import { Loader2, ChevronDown } from 'lucide-react';
 
 export default function FAQPage() {
-  const [faqPage, setFaqPage] = useState<FAQPageType | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { faqPage, isLoading, error } = useFAQ();
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    const fetchFAQPage = async () => {
-      try {
-        const page = await getFAQPage('veelgestelde-vragen');
-        if (page) {
-          setFaqPage(page);
-        } else {
-          setError('FAQ pagina niet gevonden');
-        }
-      } catch (err) {
-        console.error('Error fetching FAQ page:', err);
-        setError('Er is een fout opgetreden bij het laden van de FAQ pagina.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFAQPage();
-  }, []);
 
   const toggleQuestion = (questionId: string) => {
     setExpandedQuestions(prev => {
@@ -61,7 +39,7 @@ export default function FAQPage() {
     )
   } : null;
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <SEO 
@@ -126,51 +104,53 @@ export default function FAQPage() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }}
         />
       )}
-      <div className="max-w-4xl mx-auto px-4 py-12">
+      <div className="max-w-4xl mx-auto px-4 py-12 prose prose-blue">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">{faqPage.title}</h1>
         
-        {faqPage.categories.map((category) => (
-          <div key={category.slug} className="mb-12">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-6">{category.title}</h2>
-            <div className="space-y-4">
-              {category.questions.map((faq, index) => {
-                const questionId = `${category.slug}-${faq.anchorId || index}`;
-                const isExpanded = expandedQuestions.has(questionId);
-                
-                return (
-                  <div key={questionId} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                    <button
-                      onClick={() => toggleQuestion(questionId)}
-                      className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 focus:outline-none"
-                      aria-expanded={isExpanded ? 'true' : 'false'}
-                      aria-controls={`answer-${questionId}`}
-                    >
-                      <h3 className="text-lg font-medium text-gray-900">{faq.question}</h3>
-                      <ChevronDown 
-                        className={`w-5 h-5 text-gray-500 transform transition-transform duration-200 ${
-                          isExpanded ? 'rotate-180' : ''
-                        }`}
-                        aria-hidden="true"
-                      />
-                    </button>
-                    <div
-                      id={`answer-${questionId}`}
-                      className={`px-6 transition-all duration-200 ease-in-out ${
-                        isExpanded ? 'max-h-[2000px] opacity-100 py-4' : 'max-h-0 opacity-0'
-                      } overflow-hidden`}
-                      role="region"
-                      aria-labelledby={`question-${questionId}`}
-                    >
-                      <div className="prose prose-sm max-w-none">
-                        <ContentfulRichText content={faq.answer} />
+        <div className="faq-content">
+          {faqPage.categories.map((category) => (
+            <div key={category.slug} className="mb-12">
+              <h2 className="text-2xl font-semibold text-gray-800 mb-6">{category.title}</h2>
+              <div className="space-y-4">
+                {category.questions.map((faq, index) => {
+                  const questionId = `${category.slug}-${faq.anchorId || index}`;
+                  const isExpanded = expandedQuestions.has(questionId);
+                  
+                  return (
+                    <div key={questionId} className="bg-white rounded-lg shadow-sm overflow-hidden">
+                      <button
+                        onClick={() => toggleQuestion(questionId)}
+                        className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 focus:outline-none"
+                        aria-expanded={isExpanded ? 'true' : 'false'}
+                        aria-controls={`answer-${questionId}`}
+                      >
+                        <h3 className="text-lg font-medium text-gray-900">{faq.question}</h3>
+                        <ChevronDown 
+                          className={`w-5 h-5 text-gray-500 transform transition-transform duration-200 ${
+                            isExpanded ? 'rotate-180' : ''
+                          }`}
+                          aria-hidden="true"
+                        />
+                      </button>
+                      <div
+                        id={`answer-${questionId}`}
+                        className={`px-6 transition-all duration-200 ease-in-out ${
+                          isExpanded ? 'max-h-[2000px] opacity-100 py-4' : 'max-h-0 opacity-0'
+                        } overflow-hidden`}
+                        role="region"
+                        aria-labelledby={`question-${questionId}`}
+                      >
+                        <div className="prose prose-sm max-w-none">
+                          <ContentfulRichText content={faq.answer} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
