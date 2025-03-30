@@ -20,6 +20,8 @@ interface ShopifyProduct {
   variants: {
     edges: Array<{
       node: {
+        id: string;
+        title: string;
         price: {
           amount: string;
         };
@@ -30,6 +32,13 @@ interface ShopifyProduct {
         weight: number;
         weightUnit: string;
         barcode: string;
+        selectedOptions: Array<{
+          name: string;
+          value: string;
+        }>;
+        image: {
+          originalSrc: string;
+        };
       };
     }>;
   };
@@ -58,16 +67,18 @@ const PRODUCTS_QUERY = gql`
           description
           handle
           vendor
-          images(first: 1) {
+          images(first: 10) {
             edges {
               node {
                 originalSrc
               }
             }
           }
-          variants(first: 1) {
+          variants(first: 250) {
             edges {
               node {
+                id
+                title
                 price {
                   amount
                 }
@@ -78,6 +89,13 @@ const PRODUCTS_QUERY = gql`
                 weight
                 weightUnit
                 barcode
+                selectedOptions {
+                  name
+                  value
+                }
+                image {
+                  originalSrc
+                }
               }
             }
           }
@@ -98,12 +116,21 @@ interface ProductFeedItem {
   description: string;
   link: string;
   image_link: string;
+  additional_image_links?: string[];
   availability: 'in stock' | 'out of stock';
   price: string;
   sale_price: string;
   brand: string;
   shipping_weight: string;
   gtin: string;
+  condition: 'new' | 'refurbished' | 'used';
+  item_group_id: string;
+  size?: string;
+  color?: string;
+  material?: string;
+  pattern?: string;
+  gender?: string;
+  age_group?: string;
 }
 
 // Helper function to delay execution
@@ -157,36 +184,74 @@ export async function generateMerchantFeed(): Promise<ProductFeedItem[]> {
   try {
     const products = await fetchAllProducts();
 
-    return products.map(({ node }: any) => {
-      const variant = node.variants.edges[0]?.node;
-      const image = node.images.edges[0]?.node;
-      const price = parseFloat(variant?.price?.amount || '0');
-      const compareAtPrice = parseFloat(variant?.compareAtPrice?.amount || '0');
-      const isOnSale = compareAtPrice > price;
-
-      // Get weight from variant only
-      const weight = variant?.weight || 0;
-      const weightUnit = variant?.weightUnit || 'KILOGRAMS';
+    return products.flatMap(({ node }: any) => {
+      const productId = node.id.split('/').pop();
       
-      // Convert weight to grams (Google Merchant requirement)
-      const weightInGrams = weightUnit === 'KILOGRAMS' ? weight * 1000 : weight;
+      // Get all product images
+      const productImages = node.images.edges.map((edge: any) => edge.node.originalSrc);
+      const mainImage = productImages[0] || '';
+      const additionalImages = productImages.slice(1);
+      
+      // Process each variant of the product
+      return node.variants.edges.map(({ node: variant }: any) => {
+        const price = parseFloat(variant?.price?.amount || '0');
+        const compareAtPrice = parseFloat(variant?.compareAtPrice?.amount || '0');
+        const isOnSale = compareAtPrice > price;
 
-      // Get GTIN from variant barcode
-      const gtin = variant?.barcode || '';
+        // Get weight from variant
+        const weight = variant?.weight || 0;
+        const weightUnit = variant?.weightUnit || 'KILOGRAMS';
+        const weightInGrams = weightUnit === 'KILOGRAMS' ? weight * 1000 : weight;
 
-      return {
-        id: node.id.split('/').pop(),
-        title: node.title,
-        description: stripHtml(node.description).result,
-        link: `https://teddyshondenshop.nl/product/${node.handle}`,
-        image_link: image?.originalSrc || '',
-        availability: variant?.availableForSale ? 'in stock' : 'out of stock',
-        price: isOnSale ? `${compareAtPrice.toFixed(2)} EUR` : `${price.toFixed(2)} EUR`,
-        sale_price: isOnSale ? `${price.toFixed(2)} EUR` : '',
-        brand: node.vendor,
-        shipping_weight: `${weightInGrams}g`,
-        gtin
-      };
+        // Get GTIN from variant barcode
+        const gtin = variant?.barcode || '';
+
+        // Process variant options
+        const variantOptions: Record<string, string> = {};
+        variant.selectedOptions.forEach((option: { name: string; value: string }) => {
+          const name = option.name.toLowerCase();
+          if (name.includes('size') || name.includes('maat')) {
+            variantOptions.size = option.value;
+          } else if (name.includes('color') || name.includes('kleur')) {
+            variantOptions.color = option.value;
+          } else if (name.includes('material') || name.includes('materiaal')) {
+            variantOptions.material = option.value;
+          } else if (name.includes('pattern') || name.includes('patroon')) {
+            variantOptions.pattern = option.value;
+          } else if (name.includes('gender') || name.includes('geslacht')) {
+            variantOptions.gender = option.value;
+          } else if (name.includes('age') || name.includes('leeftijd')) {
+            variantOptions.age_group = option.value;
+          }
+        });
+
+        // Create title with size if available
+        const titleSuffix = variantOptions.size 
+          ? ` - ${variantOptions.size}`
+          : '';
+
+        // Use variant image if available, otherwise use main product image
+        const variantImage = variant.image?.originalSrc;
+        const imageLink = variantImage || mainImage;
+
+        return {
+          id: `${productId}_${variant.id.split('/').pop()}`,
+          title: `${node.title}${titleSuffix}`,
+          description: stripHtml(node.description).result,
+          link: `https://teddyshondenshop.nl/product/${node.handle}?variant=${variant.id.split('/').pop()}`,
+          image_link: imageLink,
+          additional_image_links: variantImage ? undefined : additionalImages,
+          availability: variant?.availableForSale ? 'in stock' : 'out of stock',
+          price: isOnSale ? `${compareAtPrice.toFixed(2)} EUR` : `${price.toFixed(2)} EUR`,
+          sale_price: isOnSale ? `${price.toFixed(2)} EUR` : '',
+          brand: node.vendor,
+          shipping_weight: `${weightInGrams}g`,
+          gtin,
+          condition: 'new',
+          item_group_id: productId,
+          ...variantOptions
+        };
+      });
     });
   } catch (error) {
     console.error('Error generating merchant feed:', error);
@@ -209,12 +274,21 @@ export function convertToXML(products: ProductFeedItem[]): string {
       `    <description>${escapeXml(product.description)}</description>`,
       `    <link>${escapeXml(product.link)}</link>`,
       `    <g:image_link>${escapeXml(product.image_link)}</g:image_link>`,
+      ...(product.additional_image_links || []).map(img => `    <g:additional_image_link>${escapeXml(img)}</g:additional_image_link>`),
       `    <g:availability>${product.availability}</g:availability>`,
       `    <g:price>${product.price}</g:price>`,
       product.sale_price ? `    <g:sale_price>${product.sale_price}</g:sale_price>` : '',
       `    <g:brand>${escapeXml(product.brand)}</g:brand>`,
       `    <g:shipping_weight>${product.shipping_weight}</g:shipping_weight>`,
       product.gtin ? `    <g:gtin>${product.gtin}</g:gtin>` : '',
+      `    <g:condition>${product.condition}</g:condition>`,
+      `    <g:item_group_id>${product.item_group_id}</g:item_group_id>`,
+      product.size ? `    <g:size>${escapeXml(product.size)}</g:size>` : '',
+      product.color ? `    <g:color>${escapeXml(product.color)}</g:color>` : '',
+      product.material ? `    <g:material>${escapeXml(product.material)}</g:material>` : '',
+      product.pattern ? `    <g:pattern>${escapeXml(product.pattern)}</g:pattern>` : '',
+      product.gender ? `    <g:gender>${escapeXml(product.gender)}</g:gender>` : '',
+      product.age_group ? `    <g:age_group>${escapeXml(product.age_group)}</g:age_group>` : '',
       '  </item>'
     ].filter(Boolean).join('\n');
 
