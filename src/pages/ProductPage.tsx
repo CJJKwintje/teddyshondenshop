@@ -400,7 +400,7 @@ export default function ProductPage() {
         </script>
       </Helmet>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16 lg:pb-24">
         <div className="mb-8">
           <Breadcrumbs
             items={[
@@ -412,8 +412,18 @@ export default function ProductPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column - Image Gallery & Description */}
-          <div className="space-y-6">
+          {/* Product Title - Always on top on mobile */}
+          <div className="order-1 lg:hidden">
+            <h2 className="text-sm font-medium text-gray-500 mb-1">
+              {product.vendor}
+            </h2>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              {product.title}
+            </h1>
+          </div>
+
+          {/* Image Gallery */}
+          <div className="order-2 lg:order-1 space-y-6">
             <div className="aspect-square rounded-xl overflow-hidden bg-white border border-gray-100">
               <ProductImage
                 image={displayedImages[selectedImage]?.node || product.images.edges[0].node}
@@ -443,23 +453,27 @@ export default function ProductPage() {
                 ))}
               </div>
             )}
+            {/* Description - Below image on desktop */}
             {product.description && (
-              <div className="prose prose-sm max-w-none text-gray-600 pt-6 border-t">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Productomschrijving
-                </h3>
-                <div
-                  dangerouslySetInnerHTML={{
-                    __html: product.descriptionHtml || product.description,
-                  }}
-                />
+              <div className="hidden lg:block">
+                <div className="prose prose-sm max-w-none text-gray-600 pt-6 border-t">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Productomschrijving
+                  </h3>
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: product.descriptionHtml || product.description,
+                    }}
+                  />
+                </div>
               </div>
             )}
           </div>
-  
-          {/* Right Column - Product Info */}
-          <div className="space-y-8">
-            <div>
+
+          {/* Product Info */}
+          <div className="order-3 lg:order-2 space-y-8">
+            {/* Title - Only visible on desktop */}
+            <div className="hidden lg:block">
               <h2 className="text-sm font-medium text-gray-500 mb-1">
                 {product.vendor}
               </h2>
@@ -467,7 +481,7 @@ export default function ProductPage() {
                 {product.title}
               </h1>
             </div>
-  
+
             {product.options.some((option: any) => option.values.length > 1) &&
               product.options.map((option: any) => (
                 <div key={option.id}>
@@ -502,7 +516,7 @@ export default function ProductPage() {
                   </div>
                 </div>
               ))}
-  
+
             <div className="pt-6 border-t space-y-4">
               <div className="space-y-2">
                 <p className="text-sm text-gray-500">Prijs</p>
@@ -522,7 +536,7 @@ export default function ProductPage() {
                   )}
                 </div>
               </div>
-  
+
               <div className="text-sm">
                 {selectedVariant?.quantityAvailable > 0 ? (
                   <p className="text-green-600">
@@ -532,7 +546,7 @@ export default function ProductPage() {
                   <p className="text-red-500">Niet op voorraad</p>
                 )}
               </div>
-  
+
               <div className="flex items-center gap-4">
                 <div className="flex items-center border rounded-lg">
                   <button
@@ -561,7 +575,7 @@ export default function ProductPage() {
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
-  
+
                 <button
                   onClick={handleAddToCart}
                   disabled={
@@ -593,7 +607,7 @@ export default function ProductPage() {
                 </button>
               </div>
             </div>
-  
+
             <div className="space-y-4">
               <BenefitItem
                 icon={Truck}
@@ -612,6 +626,22 @@ export default function ProductPage() {
               />
             </div>
           </div>
+
+          {/* Description - Only visible on mobile */}
+          {product.description && (
+            <div className="order-4 lg:hidden">
+              <div className="prose prose-sm max-w-none text-gray-600 pt-6 border-t">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Productomschrijving
+                </h3>
+                <div
+                  dangerouslySetInnerHTML={{
+                    __html: product.descriptionHtml || product.description,
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
