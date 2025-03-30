@@ -24,6 +24,14 @@
   status = 200
   force = true
 
+# Handle sitemap
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "/sitemap.xml"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
+
 # Handle pre-rendered category pages
 [[redirects]]
   from = "/categorie/*"
