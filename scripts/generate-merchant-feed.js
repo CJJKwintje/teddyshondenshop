@@ -1,7 +1,15 @@
-import { generateMerchantFeed, convertToXML } from '../src/utils/merchantFeed.js';
+import { generateMerchantFeed, convertToXML } from '../src/utils/merchantFeed.ts';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
+
+// Set required environment variables for Shopify client
+process.env.VITE_SHOPIFY_STORE_DOMAIN = process.env.VITE_SHOPIFY_STORE_DOMAIN || 'yvdedm-5e.myshopify.com';
+process.env.VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN = process.env.VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN || 'f2891c0e910edc30275cac0cc8e32cff';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

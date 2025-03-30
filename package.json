@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "generate-sitemap": "node scripts/generate-sitemap.js",
-    "generate-merchant-feed": "ts-node --esm scripts/generate-merchant-feed.ts"
+    "generate-merchant-feed": "vite-node scripts/generate-merchant-feed.ts"
   },
   "dependencies": {
     "@contentful/rich-text-react-renderer": "^15.19.4",
@@ -53,6 +53,7 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
     "vite": "^5.4.2",
+    "vite-node": "^3.0.9",
     "vite-plugin-static-copy": "^1.0.1"
   }
 }
