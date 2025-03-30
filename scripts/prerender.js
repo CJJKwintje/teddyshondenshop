@@ -1,62 +1,15 @@
-import puppeteer from 'puppeteer';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import { createServer } from 'http';
-import { Server } from 'node-static';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Define all routes to pre-render (without trailing slashes)
-const routes = [
-  // Main pages
-  '/',
-  '/over-ons',
-  '/algemene-voorwaarden',
-  '/privacy-policy',
-  '/contact',
-  '/veelgestelde-vragen',
-  
-  // Main categories
-  '/categorie/hondenvoeding',
-  '/categorie/hondensnacks',
-  '/categorie/op-pad',
-  '/categorie/slapen',
-  '/categorie/hondenkleding',
-  
-  // Hondenvoeding subcategories
-  '/categorie/hondenvoeding/droogvoer',
-  '/categorie/hondenvoeding/diepvriesvoer',
-  '/categorie/hondenvoeding/natvoer',
-  '/categorie/hondenvoeding/graanvrij-hondenvoer',
-  '/categorie/hondenvoeding/hypoallergeen-hondenvoer',
-  '/categorie/hondenvoeding/biologisch-hondenvoer',
-  
-  // Hondensnacks subcategories
-  '/categorie/hondensnacks/gedroogde-hondensnacks',
-  '/categorie/hondensnacks/zachte-hondensnacks',
-  '/categorie/hondensnacks/kauwsnacks-honden',
-  
-  // Op pad subcategories
-  '/categorie/op-pad/hond-vervoeren',
-  '/categorie/op-pad/hondenriemen-en-halsbanden',
-  '/categorie/op-pad/hondenluiken',
-  
-  // Slapen subcategories
-  '/categorie/slapen/hondenmanden',
-  '/categorie/slapen/hondenkussens',
-  '/categorie/slapen/hondendekens',
-  
-  // Hondenkleding subcategories
-  '/categorie/hondenkleding/hondenjassen',
-  '/categorie/hondenkleding/hondensokken'
-];
+const puppeteer = require('puppeteer');
+const fs = require('fs');
+const path = require('path');
+const { createServer } = require('http');
+const { Server } = require('node-static');
+const { getAllRoutes } = require('./getRoutes');
 
 async function prerender() {
-  console.log('Starting pre-rendering...');
-  
+  // Get all routes to pre-render
+  const routes = await getAllRoutes();
+  console.log('\n[Setup] Routes to prerender:', routes);
+
   // Start a local server to serve the dist directory
   const fileServer = new Server(path.join(__dirname, '..', 'dist'));
   const server = createServer((req, res) => {
@@ -223,4 +176,5 @@ async function prerender() {
   }
 }
 
+// Run the prerender function
 prerender(); 
