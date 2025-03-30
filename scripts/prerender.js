@@ -61,8 +61,8 @@ async function prerender() {
   const fileServer = new Server(path.join(__dirname, '..', 'dist'));
   const server = createServer((req, res) => {
     req.addListener('end', () => {
-      // Serve index.html for all routes (SPA)
-      if (!req.url.includes('.')) {
+      // Handle specific routes that need index.html
+      if (req.url === '/' || req.url === '/veelgestelde-vragen' || req.url.startsWith('/categorie/')) {
         req.url = '/index.html';
       }
       fileServer.serve(req, res);
@@ -115,6 +115,13 @@ async function prerender() {
                          document.querySelector('.grid') ||
                          document.querySelector('.container') ||
                          document.querySelector('.faq-content');
+        
+        // For FAQ page, ensure we have actual FAQ content
+        if (route === '/veelgestelde-vragen') {
+          const faqContent = document.querySelector('.faq-content');
+          return faqContent && faqContent.textContent.length > 0 && !faqContent.textContent.includes('Laden...');
+        }
+        
         return hasContent && hasContent.textContent.length > 0;
       }, { timeout: 10000 });
       
