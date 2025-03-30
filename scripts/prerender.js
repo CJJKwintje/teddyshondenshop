@@ -17,6 +17,7 @@ const routes = [
   '/algemene-voorwaarden',
   '/privacy-policy',
   '/contact',
+  '/veelgestelde-vragen',
   
   // Main categories
   '/categorie/hondenvoeding',
