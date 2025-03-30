@@ -17,68 +17,49 @@
   functionsPort = 9999
   timeout = 60
 
-# Prevent automatic trailing slash addition
+# Handle assets first
 [[redirects]]
-  from = "/categorie/*/"
-  to = "/categorie/:splat"
-  status = 301
+  from = "/assets/*"
+  to = "/assets/:splat"
+  status = 200
   force = true
 
-# Handle category pages
+# Handle pre-rendered category pages
 [[redirects]]
   from = "/categorie/*"
   to = "/categorie/:splat/index.html"
   status = 200
   force = true
+  headers = {X-From = "Netlify"}
 
-# Handle other pre-rendered pages
-[[redirects]]
-  from = "/over-ons/"
-  to = "/over-ons"
-  status = 301
-  force = true
-
+# Handle pre-rendered static pages
 [[redirects]]
   from = "/over-ons"
   to = "/over-ons/index.html"
   status = 200
   force = true
-
-[[redirects]]
-  from = "/algemene-voorwaarden/"
-  to = "/algemene-voorwaarden"
-  status = 301
-  force = true
+  headers = {X-From = "Netlify"}
 
 [[redirects]]
   from = "/algemene-voorwaarden"
   to = "/algemene-voorwaarden/index.html"
   status = 200
   force = true
-
-[[redirects]]
-  from = "/privacy-policy/"
-  to = "/privacy-policy"
-  status = 301
-  force = true
+  headers = {X-From = "Netlify"}
 
 [[redirects]]
   from = "/privacy-policy"
   to = "/privacy-policy/index.html"
   status = 200
   force = true
-
-[[redirects]]
-  from = "/contact/"
-  to = "/contact"
-  status = 301
-  force = true
+  headers = {X-From = "Netlify"}
 
 [[redirects]]
   from = "/contact"
   to = "/contact/index.html"
   status = 200
   force = true
+  headers = {X-From = "Netlify"}
 
 # Handle SPA routes
 [[redirects]]
@@ -86,6 +67,7 @@
   to = "/index.html"
   status = 200
   force = true
+  headers = {X-From = "Netlify"}
 
 # Handle merchant feed
 [[redirects]]
