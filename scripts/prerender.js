@@ -110,6 +110,10 @@ async function prerender() {
 
     console.log(`\n[Setup] Starting prerender for ${routes.length} routes`);
 
+    // Add a delay to ensure the server is fully started
+    console.log('[Setup] Waiting for server to be fully started...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
     for (const route of routes) {
       console.log(`\n[Prerender] Starting prerender for: ${route}`);
       
@@ -118,30 +122,64 @@ async function prerender() {
       // Set viewport
       await page.setViewport({ width: 1280, height: 800 });
       
-      // Navigate to the page
-      console.log(`[Prerender] Navigating to: http://localhost:3000${route}`);
-      await page.goto(`http://localhost:3000${route}`, {
-        waitUntil: 'networkidle0'
-      });
-
-      // Wait for the main content to be loaded
-      console.log('[Prerender] Waiting for #root element...');
-      await page.waitForSelector('#root');
+      // Set longer timeout for navigation
+      page.setDefaultNavigationTimeout(60000); // 60 seconds
+      page.setDefaultTimeout(60000); // 60 seconds
       
-      // Wait for React to hydrate and render content
+      // Navigate to the page with retry logic
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          console.log(`[Prerender] Navigating to: http://localhost:3000${route} (attempt ${retryCount + 1}/${maxRetries})`);
+          await page.goto(`http://localhost:3000${route}`, {
+            waitUntil: 'networkidle0',
+            timeout: 60000
+          });
+          break;
+        } catch (error) {
+          retryCount++;
+          if (retryCount === maxRetries) {
+            throw new Error(`Failed to navigate to ${route} after ${maxRetries} attempts: ${error.message}`);
+          }
+          console.log(`[Prerender] Navigation attempt ${retryCount} failed, retrying...`);
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+      }
+
+      // Wait for the main content to be loaded with retry logic
+      console.log('[Prerender] Waiting for #root element...');
+      try {
+        await page.waitForSelector('#root', { timeout: 60000 });
+      } catch (error) {
+        console.error(`[Error] Failed to find #root element for ${route}:`, error.message);
+        // Take a screenshot for debugging
+        await page.screenshot({ path: `error-${route.replace(/\//g, '-')}.png` });
+        throw error;
+      }
+      
+      // Wait for React to hydrate and render content with retry logic
       console.log('[Prerender] Waiting for content to load...');
-      await page.waitForFunction(() => {
-        // Check if the page has meaningful content
-        const hasContent = document.querySelector('.prose') || 
-                         document.querySelector('.grid') ||
-                         document.querySelector('.container') ||
-                         document.querySelector('.faq-content');
-        return hasContent && hasContent.textContent.length > 0;
-      }, { timeout: 10000 });
+      try {
+        await page.waitForFunction(() => {
+          // Check if the page has meaningful content
+          const hasContent = document.querySelector('.prose') || 
+                           document.querySelector('.grid') ||
+                           document.querySelector('.container') ||
+                           document.querySelector('.faq-content');
+          return hasContent && hasContent.textContent.length > 0;
+        }, { timeout: 60000 });
+      } catch (error) {
+        console.error(`[Error] Failed to load content for ${route}:`, error.message);
+        // Take a screenshot for debugging
+        await page.screenshot({ path: `error-content-${route.replace(/\//g, '-')}.png` });
+        throw error;
+      }
       
       // Additional wait to ensure all dynamic content is loaded
       console.log('[Prerender] Additional wait for dynamic content...');
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 5000));
       
       // Get the HTML content
       const html = await page.content();
@@ -169,6 +207,15 @@ async function prerender() {
     console.log('\n[Complete] Pre-rendering completed successfully!');
   } catch (error) {
     console.error('\n[Error] Error during pre-rendering:', error);
+    // Take a screenshot of the current page if available
+    try {
+      const pages = await browser.pages();
+      if (pages.length > 0) {
+        await pages[0].screenshot({ path: 'error-final.png' });
+      }
+    } catch (screenshotError) {
+      console.error('[Error] Failed to take error screenshot:', screenshotError);
+    }
     process.exit(1);
   } finally {
     server.close();
