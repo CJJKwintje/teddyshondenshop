@@ -216,7 +216,7 @@ async function generateSitemap() {
 
     // Write sitemap to public directory
     fs.writeFileSync(
-      path.join(process.cwd(), 'public', 'sitemap.xml'),
+      path.join(process.cwd(), 'dist', 'sitemap.xml'),
       sitemap.trim()
     );
 
