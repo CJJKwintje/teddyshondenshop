@@ -1,5 +1,6 @@
 import { createClient } from 'contentful';
 import { Document } from '@contentful/rich-text-types';
+import { FAQPage, FAQCategory, FAQEntry } from '../types/content';
 
 const SPACE_ID = import.meta.env.VITE_CONTENTFUL_SPACE_ID;
 const ACCESS_TOKEN = import.meta.env.VITE_CONTENTFUL_ACCESS_TOKEN;
@@ -223,7 +224,7 @@ export const getHomepageBanners = async (): Promise<HomepageBanner[]> => {
   try {
     const entries = await contentfulClient.getEntries({
       content_type: 'homepageBanner',
-      order: 'sys.createdAt',
+      order: ['sys.createdAt'],
     });
 
     return entries.items.map(entry => ({
@@ -332,6 +333,118 @@ export const getCategoryPage = async (categorySlug: string, subCategorySlug: str
     return allLinks.find(link => link.fields.slug === subCategorySlug) || null;
   } catch (error) {
     console.error('Error fetching category page:', error);
+    return null;
+  }
+};
+
+export const getFAQEntry = async (id: string): Promise<FAQEntry | null> => {
+  if (!contentfulClient) {
+    console.warn('Contentful client not initialized - missing environment variables');
+    return null;
+  }
+
+  try {
+    const entry = await contentfulClient.getEntry(id);
+    return {
+      question: entry.fields.question as string,
+      answer: entry.fields.answer as Document,
+      anchorId: entry.fields.anchorId as string,
+    };
+  } catch (error) {
+    console.error('Error fetching FAQ entry:', error);
+    return null;
+  }
+};
+
+export const getFAQCategory = async (slug: string): Promise<FAQCategory | null> => {
+  if (!contentfulClient) {
+    console.warn('Contentful client not initialized - missing environment variables');
+    return null;
+  }
+
+  try {
+    const entries = await contentfulClient.getEntries({
+      content_type: 'faqCategory',
+      'fields.slug': slug,
+      include: 2, // Include 2 levels of linked entries
+      limit: 1,
+    });
+
+    if (entries.items.length === 0) {
+      return null;
+    }
+
+    const entry = entries.items[0];
+    const questions = await Promise.all(
+      (entry.fields.questions as any[]).map(async (question) => {
+        const questionEntry = await contentfulClient.getEntry(question.sys.id);
+        return {
+          question: questionEntry.fields.question as string,
+          answer: questionEntry.fields.answer as Document,
+          anchorId: questionEntry.fields.anchorId as string,
+        };
+      })
+    );
+
+    return {
+      title: entry.fields.title as string,
+      slug: entry.fields.slug as string,
+      questions,
+    };
+  } catch (error) {
+    console.error('Error fetching FAQ category:', error);
+    return null;
+  }
+};
+
+export const getFAQPage = async (slug: string): Promise<FAQPage | null> => {
+  if (!contentfulClient) {
+    console.warn('Contentful client not initialized - missing environment variables');
+    return null;
+  }
+
+  try {
+    const entries = await contentfulClient.getEntries({
+      content_type: 'faqPage',
+      'fields.slug': slug,
+      include: 2, // Include 2 levels of linked entries
+      limit: 1,
+    });
+
+    if (entries.items.length === 0) {
+      return null;
+    }
+
+    const entry = entries.items[0];
+    const categories = await Promise.all(
+      (entry.fields.categories as any[]).map(async (category) => {
+        const categoryEntry = await contentfulClient.getEntry(category.sys.id);
+        const questions = await Promise.all(
+          (categoryEntry.fields.questions as any[]).map(async (question) => {
+            const questionEntry = await contentfulClient.getEntry(question.sys.id);
+            return {
+              question: questionEntry.fields.question as string,
+              answer: questionEntry.fields.answer as Document,
+              anchorId: questionEntry.fields.anchorId as string,
+            };
+          })
+        );
+
+        return {
+          title: categoryEntry.fields.title as string,
+          slug: categoryEntry.fields.slug as string,
+          questions,
+        };
+      })
+    );
+
+    return {
+      title: entry.fields.title as string,
+      slug: entry.fields.slug as string,
+      categories,
+    };
+  } catch (error) {
+    console.error('Error fetching FAQ page:', error);
     return null;
   }
 };

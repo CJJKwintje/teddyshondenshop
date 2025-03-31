@@ -27,6 +27,7 @@ import CookieBanner from './components/CookieBanner';
 import { CookieProvider } from './context/CookieContext';
 import { GoogleTagManagerScript, GoogleTagManagerNoScript } from './components/GoogleTagManager';
 import { usePageTracking } from './hooks/usePageTracking';
+import FAQPage from './pages/FAQPage';
 
 // Create a separate component for the routes that needs access to router hooks
 function AppContent() {
@@ -50,6 +51,7 @@ function AppContent() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/account/reset/:customerId/:resetToken" element={<AccountPage />} />
+        <Route path="/veelgestelde-vragen" element={<FAQPage />} />
         <Route path="/:slug" element={<ContentPage />} />
       </Routes>
       <CartPreview />

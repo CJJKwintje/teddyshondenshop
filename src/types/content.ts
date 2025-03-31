@@ -1,3 +1,5 @@
+import { Document } from '@contentful/rich-text-types';
+
 export interface ContentBlock {
   id: string;
   type: 'hero' | 'text' | 'image' | 'quote' | 'callToAction';
@@ -48,4 +50,22 @@ export interface CallToActionBlock {
   buttonText: string;
   buttonLink: string;
   variant?: 'primary' | 'secondary';
+}
+
+export interface FAQEntry {
+  question: string;
+  answer: Document;
+  anchorId?: string;
+}
+
+export interface FAQCategory {
+  title: string;
+  slug: string;
+  questions: FAQEntry[];
+}
+
+export interface FAQPage {
+  title: string;
+  slug: string;
+  categories: FAQCategory[];
 }
