@@ -1,13 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
-import pkg from 'contentful';
+import { createClient } from 'contentful';
 import dotenv from 'dotenv';
 
 // Load environment variables from .env file
 dotenv.config();
-
-const { createClient } = pkg;
 
 const SHOPIFY_STORE_URL = 'https://yvdedm-5e.myshopify.com/api/2024-01/graphql';
 const SHOPIFY_STOREFRONT_TOKEN = 'f2891c0e910edc30275cac0cc8e32cff';
