@@ -11,6 +11,7 @@ import type { HomepageBanner, Brand } from '../services/contentful';
 import BrandLogos from '../components/BrandLogos';
 import CategoryGrid from '../components/CategoryGrid';
 import { subscribeToNewsletter } from '../services/shopify';
+import BannerSlider from '../components/BannerSlider';
 
 const PRODUCTS_QUERY = gql`
   query GetProducts {
@@ -153,8 +154,10 @@ const HomePage: React.FC = () => {
     const loadBanners = async () => {
       try {
         const bannerData = await getHomepageBanners();
-        console.log('Loaded banners:', bannerData);
-        setBanners(bannerData);
+        // Sort banners by orderId
+        const sortedBanners = bannerData.sort((a, b) => a.orderId - b.orderId);
+        console.log('Loaded banners:', sortedBanners);
+        setBanners(sortedBanners);
       } catch (error) {
         console.error('Error loading banners:', error);
       } finally {
@@ -223,13 +226,13 @@ const HomePage: React.FC = () => {
             </>
           ) : (
             <>
-              {/* Main Banner */}
-              <div className={`col-span-2 lg:col-span-2 rounded-2xl overflow-hidden relative min-h-[200px] md:min-h-[300px] group ${getBackgroundColor(banners[0]?.backgroundColor)}`}>
-                {banners[0]?.backgroundImage?.fields?.file?.url && (
+              {/* Main Banner (orderId: 1) */}
+              <div className={`col-span-2 lg:col-span-2 rounded-2xl overflow-hidden relative min-h-[200px] md:min-h-[300px] group ${getBackgroundColor(banners.find(b => b.orderId === 1)?.backgroundColor)}`}>
+                {banners.find(b => b.orderId === 1)?.backgroundImage?.fields?.file?.url && (
                   <div 
                     className="absolute inset-0"
                     style={{
-                      backgroundImage: `url(${banners[0].backgroundImage.fields.file.url})`,
+                      backgroundImage: `url(${banners.find(b => b.orderId === 1)?.backgroundImage.fields.file.url})`,
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
                     }}
@@ -237,27 +240,27 @@ const HomePage: React.FC = () => {
                 )}
                 <div className="relative z-10 p-6 md:p-8 h-full flex flex-col justify-center bg-gradient-to-r from-black/50 to-transparent">
                   <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">
-                    {banners[0]?.title || "PREMIUM HONDENVOEDING BIJ TEDDY'S"}
+                    {banners.find(b => b.orderId === 1)?.title || "PREMIUM HONDENVOEDING BIJ TEDDY'S"}
                   </h2>
-                  {banners[0]?.description && (
-                    <p className="text-lg text-white mb-6">{banners[0].description}</p>
+                  {banners.find(b => b.orderId === 1)?.description && (
+                    <p className="text-lg text-white mb-6">{banners.find(b => b.orderId === 1)?.description}</p>
                   )}
                   <Link
-                    to={banners[0]?.buttonLink || "/categorie/hondenvoeding"}
+                    to={banners.find(b => b.orderId === 1)?.buttonLink || "/categorie/hondenvoeding"}
                     className="inline-flex bg-white text-gray-900 px-4 md:px-6 py-2 md:py-3 rounded-full font-medium hover:bg-gray-50 transition-colors w-fit text-sm md:text-base"
                   >
-                    {banners[0]?.buttonText || "Ontdek ons assortiment"}
+                    {banners.find(b => b.orderId === 1)?.buttonText || "Ontdek ons assortiment"}
                   </Link>
                 </div>
               </div>
 
-              {/* Secondary Banner */}
-              <div className={`col-span-2 lg:col-span-1 rounded-2xl overflow-hidden relative min-h-[200px] md:min-h-[300px] group ${getBackgroundColor(banners[1]?.backgroundColor)}`}>
-                {banners[1]?.backgroundImage?.fields?.file?.url && (
+              {/* Secondary Banner (orderId: 2) */}
+              <div className={`col-span-2 lg:col-span-1 rounded-2xl overflow-hidden relative min-h-[200px] md:min-h-[300px] group ${getBackgroundColor(banners.find(b => b.orderId === 2)?.backgroundColor)}`}>
+                {banners.find(b => b.orderId === 2)?.backgroundImage?.fields?.file?.url && (
                   <div 
                     className="absolute inset-0"
                     style={{
-                      backgroundImage: `url(${banners[1].backgroundImage.fields.file.url})`,
+                      backgroundImage: `url(${banners.find(b => b.orderId === 2)?.backgroundImage.fields.file.url})`,
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
                     }}
@@ -265,22 +268,29 @@ const HomePage: React.FC = () => {
                 )}
                 <div className="relative z-10 p-6 md:p-8 h-full flex flex-col justify-center bg-gradient-to-r from-black/50 to-transparent">
                   <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">
-                    {banners[1]?.title || "SNACKS & TRAINING"}
+                    {banners.find(b => b.orderId === 2)?.title || "SNACKS & TRAINING"}
                   </h2>
-                  {banners[1]?.description && (
-                    <p className="text-lg text-white mb-6">{banners[1].description}</p>
+                  {banners.find(b => b.orderId === 2)?.description && (
+                    <p className="text-lg text-white mb-6">{banners.find(b => b.orderId === 2)?.description}</p>
                   )}
                   <Link
-                    to={banners[1]?.buttonLink || "/categorie/hondensnacks"}
+                    to={banners.find(b => b.orderId === 2)?.buttonLink || "/categorie/hondensnacks"}
                     className="inline-flex bg-white text-gray-900 px-4 md:px-6 py-2 md:py-3 rounded-full font-medium hover:bg-gray-50 transition-colors w-fit text-sm md:text-base"
                   >
-                    {banners[1]?.buttonText || "Bekijk snacks"}
+                    {banners.find(b => b.orderId === 2)?.buttonText || "Bekijk snacks"}
                   </Link>
                 </div>
               </div>
             </>
           )}
         </section>
+
+        {/* Additional Banners Slider */}
+        {!bannersLoading && banners.filter(b => b.orderId >= 3).length > 0 && (
+          <section className="mb-8 md:mb-12">
+            <BannerSlider banners={banners.filter(b => b.orderId >= 3)} />
+          </section>
+        )}
 
         {/* Categories Grid */}
         <section className="mb-12">

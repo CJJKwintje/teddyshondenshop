@@ -48,6 +48,7 @@ export interface HomepageBanner {
     };
   };
   backgroundColor?: string;
+  orderId: number;
 }
 
 export interface Brand {
@@ -234,6 +235,7 @@ export const getHomepageBanners = async (): Promise<HomepageBanner[]> => {
       buttonText: entry.fields.buttonText as string,
       buttonLink: entry.fields.buttonLink as string,
       backgroundColor: entry.fields.backgroundColor as string || undefined,
+      orderId: entry.fields.orderId as number,
     }));
   } catch (error) {
     console.error('Error fetching homepage banners:', error);
