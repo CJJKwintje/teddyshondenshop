@@ -227,7 +227,7 @@ const HomePage: React.FC = () => {
           ) : (
             <>
               {/* Main Banner (orderId: 1) */}
-              <div className={`col-span-2 lg:col-span-2 rounded-2xl overflow-hidden relative min-h-[200px] md:min-h-[300px] group ${getBackgroundColor(banners.find(b => b.orderId === 1)?.backgroundColor)}`}>
+              <div className={`col-span-2 lg:col-span-2 order-1 rounded-lg overflow-hidden relative min-h-[200px] md:min-h-[300px] group ${getBackgroundColor(banners.find(b => b.orderId === 1)?.backgroundColor)}`}>
                 {banners.find(b => b.orderId === 1)?.backgroundImage?.fields?.file?.url && (
                   <div 
                     className="absolute inset-0"
@@ -238,12 +238,12 @@ const HomePage: React.FC = () => {
                     }}
                   />
                 )}
-                <div className="relative z-10 p-6 md:p-8 h-full flex flex-col justify-center bg-gradient-to-r from-black/50 to-transparent">
-                  <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">
+                <div className="relative z-10 p-5 md:p-6 h-full flex flex-col justify-center bg-gradient-to-r from-black/50 to-transparent">
+                  <h2 className="text-2xl md:text-4xl font-extrabold text-white mb-4 font-heading">
                     {banners.find(b => b.orderId === 1)?.title || "PREMIUM HONDENVOEDING BIJ TEDDY'S"}
                   </h2>
                   {banners.find(b => b.orderId === 1)?.description && (
-                    <p className="text-lg text-white mb-6">{banners.find(b => b.orderId === 1)?.description}</p>
+                    <p className="text-[17px] md:text-[21px] text-white mb-6 font-sans">{banners.find(b => b.orderId === 1)?.description}</p>
                   )}
                   <Link
                     to={banners.find(b => b.orderId === 1)?.buttonLink || "/categorie/hondenvoeding"}
@@ -255,7 +255,7 @@ const HomePage: React.FC = () => {
               </div>
 
               {/* Secondary Banner (orderId: 2) */}
-              <div className={`col-span-2 lg:col-span-1 rounded-2xl overflow-hidden relative min-h-[200px] md:min-h-[300px] group ${getBackgroundColor(banners.find(b => b.orderId === 2)?.backgroundColor)}`}>
+              <div className={`col-span-2 lg:col-span-1 order-3 lg:order-2 rounded-lg overflow-hidden relative min-h-[200px] md:min-h-[300px] group ${getBackgroundColor(banners.find(b => b.orderId === 2)?.backgroundColor)}`}>
                 {banners.find(b => b.orderId === 2)?.backgroundImage?.fields?.file?.url && (
                   <div 
                     className="absolute inset-0"
@@ -266,12 +266,12 @@ const HomePage: React.FC = () => {
                     }}
                   />
                 )}
-                <div className="relative z-10 p-6 md:p-8 h-full flex flex-col justify-center bg-gradient-to-r from-black/50 to-transparent">
-                  <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">
+                <div className="relative z-10 p-5 md:p-6 h-full flex flex-col justify-center bg-gradient-to-r from-black/50 to-transparent">
+                  <h2 className="text-2xl md:text-4xl font-extrabold text-white mb-4 font-heading">
                     {banners.find(b => b.orderId === 2)?.title || "SNACKS & TRAINING"}
                   </h2>
                   {banners.find(b => b.orderId === 2)?.description && (
-                    <p className="text-lg text-white mb-6">{banners.find(b => b.orderId === 2)?.description}</p>
+                    <p className="text-[17px] md:text-[21px] text-white mb-6 font-sans">{banners.find(b => b.orderId === 2)?.description}</p>
                   )}
                   <Link
                     to={banners.find(b => b.orderId === 2)?.buttonLink || "/categorie/hondensnacks"}
@@ -281,16 +281,16 @@ const HomePage: React.FC = () => {
                   </Link>
                 </div>
               </div>
+
+              {/* Additional Banners Slider */}
+              {!bannersLoading && banners.filter(b => b.orderId >= 3).length > 0 && (
+                <div className="col-span-2 lg:col-span-3 order-2 lg:order-3">
+                  <BannerSlider banners={banners.filter(b => b.orderId >= 3)} />
+                </div>
+              )}
             </>
           )}
         </section>
-
-        {/* Additional Banners Slider */}
-        {!bannersLoading && banners.filter(b => b.orderId >= 3).length > 0 && (
-          <section className="mb-8 md:mb-12">
-            <BannerSlider banners={banners.filter(b => b.orderId >= 3)} />
-          </section>
-        )}
 
         {/* Categories Grid */}
         <section className="mb-12">

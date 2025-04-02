@@ -72,7 +72,7 @@ export default function CategorySlider({ categories }: CategorySliderProps) {
             <Link
               key={index}
               to={`/categorie/${category.slug}`}
-              className="flex-none w-[calc(85%-1rem)] sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1rem)] xl:w-[calc(25%-1rem)] snap-start relative rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden group h-48 sm:h-48"
+              className="flex-none w-[calc(85%-1rem)] sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1rem)] xl:w-[calc(25%-1rem)] snap-start relative rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden group h-48 sm:h-48"
             >
               {backgroundImage ? (
                 <div 

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
 import type { HomepageBanner } from '../services/contentful';
 
 interface BannerSliderProps {
@@ -41,10 +42,13 @@ export default function BannerSlider({ banners }: BannerSliderProps) {
 
   if (banners.length === 0) return null;
 
+  // Determine if we need navigation based on screen size and number of banners
+  const needsNavigation = banners.length > 2; // Show navigation if more than 2 banners
+
   return (
     <div className="relative">
       {/* Navigation Buttons */}
-      {banners.length > 1 && (
+      {needsNavigation && (
         <>
           <button
             onClick={prevSlide}
@@ -66,16 +70,12 @@ export default function BannerSlider({ banners }: BannerSliderProps) {
       {/* Slider Container */}
       <div 
         ref={sliderRef}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 overflow-hidden"
+        className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 overflow-hidden"
       >
         {banners.map((banner, index) => (
           <div
             key={banner.orderId}
-            className={`rounded-2xl overflow-hidden relative min-h-[200px] md:min-h-[300px] group transition-transform duration-300 ${
-              index === currentIndex
-                ? 'translate-x-0'
-                : 'translate-x-full'
-            } ${getBackgroundColor(banner.backgroundColor)}`}
+            className={`rounded-lg overflow-hidden relative min-h-[200px] md:min-h-[300px] group ${getBackgroundColor(banner.backgroundColor)}`}
           >
             {banner.backgroundImage?.fields?.file?.url && (
               <div 
@@ -87,13 +87,19 @@ export default function BannerSlider({ banners }: BannerSliderProps) {
                 }}
               />
             )}
-            <div className="relative z-10 p-6 md:p-8 h-full flex flex-col justify-center">
-              <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">
-                {banner.title}
-              </h2>
-              {banner.description && (
-                <p className="text-lg text-white mb-6">{banner.description}</p>
-              )}
+            <div className="relative z-10 p-5 md:p-6 h-full flex flex-col justify-between">
+              <div>
+                {banner.orderId < 3 && (
+                  <h2 className="text-2xl md:text-4xl font-bold text-white mb-4 font-heading">
+                    {banner.title}
+                  </h2>
+                )}
+                {banner.description && (
+                  <div className="text-[17px] md:text-[21px] text-white prose prose-invert prose-lg md:prose-xl font-sans">
+                    <ReactMarkdown>{banner.description}</ReactMarkdown>
+                  </div>
+                )}
+              </div>
               <Link
                 to={banner.buttonLink}
                 className="inline-flex bg-white text-gray-900 px-4 md:px-6 py-2 md:py-3 rounded-full font-medium hover:bg-gray-50 transition-colors w-fit text-sm md:text-base"
@@ -106,7 +112,7 @@ export default function BannerSlider({ banners }: BannerSliderProps) {
       </div>
 
       {/* Dots Indicator */}
-      {banners.length > 1 && (
+      {needsNavigation && (
         <div className="flex justify-center gap-2 mt-4">
           {banners.map((_, index) => (
             <button
