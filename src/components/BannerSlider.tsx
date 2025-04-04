@@ -8,6 +8,8 @@ interface BannerSliderProps {
   banners: HomepageBanner[];
 }
 
+// hoi dit is Julius
+
 const getBackgroundColor = (color?: string) => {
   if (!color) return 'bg-sky-500';
 
