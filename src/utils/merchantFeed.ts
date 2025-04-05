@@ -133,17 +133,35 @@ interface ProductFeedItem {
   age_group?: string;
 }
 
-// Helper function to delay execution
+// Helper function to delay execution with exponential backoff
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper function to handle rate limiting
+async function handleRateLimit(response: any): Promise<number> {
+  const retryAfter = response.headers?.get('Retry-After');
+  if (retryAfter) {
+    const waitTime = parseInt(retryAfter, 10) * 1000; // Convert to milliseconds
+    console.log(`Rate limit hit. Waiting ${waitTime}ms before retrying...`);
+    await delay(waitTime);
+    return waitTime;
+  }
+  return 0;
+}
 
 async function fetchAllProducts(): Promise<any[]> {
   let allProducts: any[] = [];
   let hasNextPage = true;
   let cursor: string | null = null;
+  let consecutiveErrors = 0;
+  const MAX_RETRIES = 3;
+  const BASE_DELAY = 200; // Base delay between requests in milliseconds
 
   while (hasNextPage) {
     try {
-      const result: { data?: ProductsQueryResponse; error?: Error } = await shopifyClient.query<ProductsQueryResponse>(PRODUCTS_QUERY, { cursor });
+      const result: { data?: ProductsQueryResponse; error?: Error; response?: any } = await shopifyClient.query<ProductsQueryResponse>(PRODUCTS_QUERY, { cursor });
+
+      // Reset consecutive errors on successful request
+      consecutiveErrors = 0;
 
       if (result.error) {
         console.error('Error fetching products for feed:', result.error);
@@ -163,16 +181,32 @@ async function fetchAllProducts(): Promise<any[]> {
 
       // Add a small delay between requests to prevent rate limiting
       if (hasNextPage) {
-        await delay(1000); // 1 second delay between requests
+        await delay(BASE_DELAY);
       }
-    } catch (error) {
-      console.error('Error during pagination:', error);
-      // If we have products, return what we have instead of failing completely
-      if (allProducts.length > 0) {
-        console.log(`Returning ${allProducts.length} products despite error`);
-        return allProducts;
+    } catch (error: any) {
+      consecutiveErrors++;
+      
+      // Check if it's a rate limit error
+      if (error.response?.status === 429) {
+        const waitTime = await handleRateLimit(error.response);
+        console.log(`Retrying after rate limit (attempt ${consecutiveErrors}/${MAX_RETRIES})...`);
+        continue; // Retry the same request
       }
-      throw error;
+
+      // If we've hit max retries, either return what we have or throw
+      if (consecutiveErrors >= MAX_RETRIES) {
+        console.error(`Failed after ${MAX_RETRIES} consecutive attempts`);
+        if (allProducts.length > 0) {
+          console.log(`Returning ${allProducts.length} products despite error`);
+          return allProducts;
+        }
+        throw error;
+      }
+
+      // For other errors, implement exponential backoff
+      const backoffTime = Math.min(1000 * Math.pow(2, consecutiveErrors), 10000);
+      console.log(`Error occurred. Waiting ${backoffTime}ms before retry (attempt ${consecutiveErrors}/${MAX_RETRIES})...`);
+      await delay(backoffTime);
     }
   }
 
