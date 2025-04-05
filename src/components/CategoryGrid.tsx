@@ -1,10 +1,12 @@
-import React from 'react';
+// Component for displaying a grid of category cards
 import { Link } from 'react-router-dom';
 import { useNavigation } from '../hooks/useNavigation';
-import { documentToReactComponents } from '@contentful/rich-text-react-renderer';
 
 export default function CategoryGrid() {
   const { categories: contentfulCategories } = useNavigation();
+
+  // Debug log
+  console.log('CategoryGrid - Categories:', contentfulCategories);
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
@@ -12,38 +14,62 @@ export default function CategoryGrid() {
         const { categoryPage } = category;
         if (!categoryPage) return null;
 
-        const backgroundImage = categoryPage.bannerImage?.fields.file.url;
+        // Debug log for each category
+        console.log(`Category ${index}:`, {
+          title: categoryPage.title,
+          bannerImage: categoryPage.bannerImage,
+          bannerBackgroundColor: categoryPage.bannerBackgroundColor
+        });
+
+        // Get background color
+        const backgroundColor = categoryPage.bannerBackgroundColor ? `#${categoryPage.bannerBackgroundColor}` : '#84D4B4';
+
+        // Get image URLs
+        const desktopImageUrl = categoryPage.bannerImage?.fields?.file?.url;
+        const mobileImageUrl = categoryPage.bannerImageMobile?.fields?.file?.url;
 
         return (
           <Link
             key={index}
             to={`/categorie/${category.slug}`}
-            className="relative rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden group h-48"
+            className="relative rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden group h-48"
+            style={{
+              backgroundColor,
+            } as React.CSSProperties}
           >
-            {backgroundImage ? (
-              <div 
-                className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
-                style={{ 
-                  backgroundImage: `url(${backgroundImage})`,
-                  filter: 'brightness(0.8)'
-                }}
-              />
-            ) : (
-              <div className="absolute inset-0 bg-gray-500" />
+            {/* Background image - always render if available, will be transparent */}
+            {(desktopImageUrl || mobileImageUrl) && (
+              <>
+                {/* Mobile image */}
+                {mobileImageUrl && (
+                  <div
+                    className="absolute inset-0 bg-cover bg-center min-[450px]:hidden"
+                    style={{
+                      backgroundImage: `url(${mobileImageUrl})`,
+                    }}
+                  />
+                )}
+                {/* Desktop image */}
+                {desktopImageUrl && (
+                  <div
+                    className="absolute inset-0 bg-cover bg-center hidden min-[450px]:block"
+                    style={{
+                      backgroundImage: `url(${desktopImageUrl})`,
+                    }}
+                  />
+                )}
+              </>
             )}
-            <div className="relative h-full p-3 min-[450px]:p-6 flex flex-col justify-between z-10 text-white">
-              <div className="flex items-start gap-3">
-                <h3 className="text-lg min-[450px]:text-xl font-semibold group-hover:text-white/90 transition-colors">
-                  {categoryPage.bannerTitle || categoryPage.title}
-                </h3>
-              </div>
-              <p className="text-white line-clamp-2 text-xs min-[450px]:text-sm">
-                {categoryPage.bannerSubtitle || (categoryPage.description ? documentToReactComponents(categoryPage.description) : '')}
-              </p>
+
+            {/* Content */}
+            <div className="relative h-full flex flex-col z-10 text-white p-4">
+              <h3 className="text-lg min-[450px]:text-xl font-bold group-hover:text-white/90 transition-colors text-left]">
+                {categoryPage.bannerTitle || categoryPage.title}
+              </h3>
             </div>
           </Link>
         );
       })}
     </div>
   );
-} 
+}
