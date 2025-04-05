@@ -11,13 +11,19 @@ const CartPreview: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const [prevCartLength, setPrevCartLength] = useState(cart.length);
 
-  // Show preview when cart changes (item added)
+  // Show preview only when items are added to cart (not on initial load)
   useEffect(() => {
-    if (cart.length > 0) {
+    // Only show the preview if cart length increased (item added)
+    // and we're not on the initial render (prevCartLength !== 0)
+    if (cart.length > prevCartLength && prevCartLength !== 0) {
       setIsVisible(true);
     }
-  }, [cart.length]);
+    
+    // Update the previous cart length for the next comparison
+    setPrevCartLength(cart.length);
+  }, [cart.length, prevCartLength]);
 
   // Hide preview when clicking outside
   useClickOutside(previewRef, () => {

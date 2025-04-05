@@ -298,6 +298,18 @@ export default function ProductPage() {
 
   // Set up intersection observer for the original controls
   React.useEffect(() => {
+    // Check if element is in viewport on initial render
+    const checkInitialVisibility = () => {
+      if (originalControlsRef.current) {
+        const rect = originalControlsRef.current.getBoundingClientRect();
+        const isInViewport = rect.top >= 0 && rect.bottom <= window.innerHeight;
+        setShowStickyBar(!isInViewport);
+      }
+    };
+
+    // Run initial check after a small delay to ensure DOM is fully rendered
+    const timeoutId = setTimeout(checkInitialVisibility, 100);
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         setShowStickyBar(!entry.isIntersecting);
@@ -309,7 +321,10 @@ export default function ProductPage() {
       observer.observe(originalControlsRef.current);
     }
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   if (fetching) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { Trash2, MinusCircle, PlusCircle, ArrowLeft, AlertCircle, Wifi, RefreshCcw, Plus, Minus, Truck } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -13,6 +13,8 @@ const CartPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
+  const [showStickyBar, setShowStickyBar] = useState(false);
+  const originalCheckoutRef = useRef<HTMLDivElement>(null);
   
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingCost = subtotal >= 59 ? 0 : 6.95;
@@ -147,6 +149,37 @@ const CartPage: React.FC = () => {
     return `Je winkelwagen bevat ${cart.length} ${cart.length === 1 ? 'product' : 'producten'}. Ga verder met afrekenen of shop verder in onze webshop.`;
   };
 
+  // Set up intersection observer for the original checkout section
+  useEffect(() => {
+    // Check if element is in viewport on initial render
+    const checkInitialVisibility = () => {
+      if (originalCheckoutRef.current) {
+        const rect = originalCheckoutRef.current.getBoundingClientRect();
+        const isInViewport = rect.top >= 0 && rect.bottom <= window.innerHeight;
+        setShowStickyBar(!isInViewport);
+      }
+    };
+
+    // Run initial check after a small delay to ensure DOM is fully rendered
+    const timeoutId = setTimeout(checkInitialVisibility, 100);
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setShowStickyBar(!entry.isIntersecting);
+      },
+      { threshold: 1.0 }
+    );
+
+    if (originalCheckoutRef.current) {
+      observer.observe(originalCheckoutRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
   if (cart.length === 0) {
     return (
       <div className="container mx-auto px-4 py-16 text-center min-h-[60vh] flex flex-col items-center justify-center">
@@ -230,7 +263,10 @@ const CartPage: React.FC = () => {
                 key={item.id}
                 className="bg-white rounded-lg shadow p-4 flex flex-col sm:flex-row gap-4"
               >
-                <div className="flex items-start gap-4 flex-1">
+                <Link 
+                  to={`/product/${item.name.toLowerCase().replace(/\s+/g, '-')}?id=${item.id}`}
+                  className="flex items-start gap-4 flex-1 hover:opacity-80 transition-opacity"
+                >
                   <div className="w-20 h-20 flex-shrink-0">
                     <img
                       src={item.image}
@@ -244,7 +280,7 @@ const CartPage: React.FC = () => {
                     </h3>
                     <p>€{formatPrice(item.price)}</p>
                   </div>
-                </div>
+                </Link>
                 <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
                   <div className="flex items-center border rounded-lg">
                     <button
@@ -290,7 +326,7 @@ const CartPage: React.FC = () => {
           {shippingCost > 0 && (
             <div className="mt-12">
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-xl font-bold">Nog een paar speeltjes of snacks erbij en je bespaart €6,95 verzendkosten!</h2>
+                <h2 className="text-xl font-bold">Nog een paar lekkere snacks erbij en je bespaart €6,95 verzendkosten!</h2>
                 <button 
                   onClick={getNextPage}
                   className="p-2 rounded-full hover:bg-gray-100 transition-colors group"
@@ -364,7 +400,7 @@ const CartPage: React.FC = () => {
         </div>
 
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow p-6 sticky top-24">
+          <div className="bg-white rounded-lg shadow p-6 sticky top-24" ref={originalCheckoutRef}>
             <h2 className="text-xl font-bold mb-4">Overzicht</h2>
             
             <div className="space-y-3 mb-6">
@@ -438,6 +474,41 @@ const CartPage: React.FC = () => {
               Veilig betalen met iDEAL, creditcard of PayPal
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Sticky checkout bar for mobile */}
+      <div className={`lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 transition-transform duration-300 ${
+        showStickyBar ? 'translate-y-0' : 'translate-y-full'
+      }`}>
+        <div className="max-w-7xl mx-auto space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Totaal</p>
+              <p className="text-xl font-bold">€{formatPrice(total)}</p>
+            </div>
+            <div>
+              {shippingCost === 0 ? (
+                <p className="text-sm text-green-600">Gratis verzending</p>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  Nog €{formatPrice(59 - subtotal)} tot gratis verzending
+                </p>
+              )}
+            </div>
+          </div>
+
+          <button
+            onClick={() => handleCheckout(false)}
+            disabled={isLoading || isBelowMinimum}
+            className={`w-full bg-[#63D7B2] text-white py-4 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center justify-center gap-3 ${
+              isLoading || isBelowMinimum
+                ? 'opacity-75 cursor-not-allowed'
+                : 'hover:bg-[#47C09A]'
+            }`}
+          >
+            {isLoading ? 'Bezig met laden...' : isBelowMinimum ? `Minimaal €${MINIMUM_ORDER_AMOUNT} nodig` : 'Afrekenen'}
+          </button>
         </div>
       </div>
     </div>
