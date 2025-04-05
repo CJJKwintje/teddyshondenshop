@@ -144,6 +144,9 @@ export default function ProductPage() {
   const [selectedOptions, setSelectedOptions] = React.useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [displayedImages, setDisplayedImages] = useState<any[]>([]);
+  const [showStickyBar, setShowStickyBar] = useState(false);
+  const [showVariantModal, setShowVariantModal] = useState(false);
+  const originalControlsRef = React.useRef<HTMLDivElement>(null);
 
   const [result] = useQuery({
     query: PRODUCT_QUERY,
@@ -276,20 +279,37 @@ export default function ProductPage() {
   // Update displayed images when product data or selected variant changes
   React.useEffect(() => {
     if (data?.productByHandle) {
+      // Always show all product images
+      setDisplayedImages(data.productByHandle.images.edges);
+      
+      // If a variant is selected and has an image, find its index in the array
       if (selectedVariant?.image) {
-        // If a variant is selected and has an image, show only that image
-        setDisplayedImages([{
-          node: {
-            originalSrc: selectedVariant.image.originalSrc,
-            altText: selectedVariant.image.altText
-          }
-        }]);
-      } else {
-        // Otherwise show all main product images
-        setDisplayedImages(data.productByHandle.images.edges);
+        const variantImageIndex = data.productByHandle.images.edges.findIndex(
+          (edge: any) => edge.node.originalSrc === selectedVariant.image.originalSrc
+        );
+        // If found, set it as the selected image
+        if (variantImageIndex !== -1) {
+          setSelectedImage(variantImageIndex);
+        }
       }
     }
   }, [data, selectedVariant]);
+
+  // Set up intersection observer for the original controls
+  React.useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setShowStickyBar(!entry.isIntersecting);
+      },
+      { threshold: 1.0 }
+    );
+
+    if (originalControlsRef.current) {
+      observer.observe(originalControlsRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   if (fetching) {
     return (
@@ -438,7 +458,7 @@ export default function ProductPage() {
                     onClick={() => setSelectedImage(index)}
                     className={`aspect-square rounded-lg overflow-hidden bg-white border transition-all ${
                       selectedImage === index
-                        ? 'ring-2 ring-blue-500 ring-offset-2 border-transparent'
+                        ? 'ring-2 ring-[#63D7B2] ring-offset-2 border-transparent'
                         : 'border-gray-100 hover:border-gray-200'
                     }`}
                   >
@@ -547,7 +567,7 @@ export default function ProductPage() {
                 )}
               </div>
 
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4" ref={originalControlsRef}>
                 <div className="flex items-center border rounded-lg">
                   <button
                     onClick={() => handleQuantityChange(quantity - 1)}
@@ -644,6 +664,149 @@ export default function ProductPage() {
           )}
         </div>
       </div>
+
+      {/* Sticky bar for mobile */}
+      <div className={`lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 transition-transform duration-300 ${
+        showStickyBar ? 'translate-y-0' : 'translate-y-full'
+      }`}>
+        <div className="max-w-7xl mx-auto space-y-4">
+          {/* Variant selector */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4">
+            {product.options.map((option: any) => {
+              const variantPrice = findVariantPrice(option.name, selectedOptions[option.name]);
+              return (
+                <button
+                  key={option.id}
+                  onClick={() => setShowVariantModal(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg text-sm whitespace-nowrap"
+                >
+                  <span className="text-gray-500">{option.name}:</span>
+                  <span className="font-medium">{cleanVariantTitle(selectedOptions[option.name])}</span>
+                  {variantPrice && (
+                    <span className="text-gray-500">€{formatPrice(variantPrice)}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Quantity and Add to Cart */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center border rounded-lg">
+              <button
+                onClick={() => handleQuantityChange(quantity - 1)}
+                disabled={quantity <= 1}
+                className="p-2 text-gray-600 hover:text-gray-900 disabled:text-gray-400"
+                aria-label="Decrease quantity"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <input
+                type="number"
+                min="1"
+                max={selectedVariant?.quantityAvailable || 99}
+                value={quantity}
+                onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
+                className="w-16 text-center border-x py-2 focus:outline-none no-spinner"
+                aria-label="Product quantity"
+              />
+              <button
+                onClick={() => handleQuantityChange(quantity + 1)}
+                disabled={quantity >= (selectedVariant?.quantityAvailable || 99)}
+                className="p-2 text-gray-600 hover:text-gray-900 disabled:text-gray-400"
+                aria-label="Increase quantity"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+
+            <button
+              onClick={handleAddToCart}
+              disabled={
+                isAdded ||
+                !selectedVariant ||
+                selectedVariant.quantityAvailable === 0
+              }
+              className={`flex-1 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center justify-center gap-3 ${
+                isAdded
+                  ? 'bg-green-500 text-white'
+                  : selectedVariant?.quantityAvailable === 0
+                  ? 'bg-gray-300 cursor-not-allowed'
+                  : 'bg-[#63D7B2] hover:bg-[#47C09A] text-white'
+              }`}
+            >
+              {isAdded ? (
+                <>
+                  <Check className="w-6 h-6" />
+                  Toegevoegd
+                </>
+              ) : selectedVariant?.quantityAvailable === 0 ? (
+                'Uitverkocht'
+              ) : (
+                <>
+                  <ShoppingCart className="w-6 h-6" />
+                  Voeg toe
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Variant Selection Modal */}
+      {showVariantModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 lg:hidden">
+          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Kies variant</h3>
+              <button
+                onClick={() => setShowVariantModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                Sluiten
+              </button>
+            </div>
+            <div className="space-y-6">
+              {product.options.map((option: any) => (
+                <div key={option.id}>
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">
+                    {option.name}
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {option.values.map((value: string) => {
+                      const variantPrice = findVariantPrice(option.name, value);
+                      const isSelected = selectedOptions[option.name] === value;
+                      const cleanValue = cleanVariantTitle(value);
+                      
+                      return (
+                        <button
+                          key={value}
+                          onClick={() => {
+                            handleOptionChange(option.name, value);
+                            setShowVariantModal(false);
+                          }}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                            isSelected
+                              ? 'bg-[#63D7B2] text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          <span>{cleanValue}</span>
+                          {variantPrice && (
+                            <span className={`text-xs ${isSelected ? 'text-white/80' : 'text-gray-500'}`}>
+                              €{formatPrice(variantPrice)}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
