@@ -293,37 +293,17 @@ export default function CategoryPage() {
           />
         </div>
 
-        {/* Banner Section */}
-        {pageData?.bannerImage && (
-          <div className="relative rounded-xl overflow-hidden mb-12">
-            <div 
-              className="absolute inset-0 bg-cover bg-center"
-              style={{ 
-                backgroundImage: `url(${pageData.bannerImage.fields.file.url})`,
-                filter: 'brightness(0.7)'
-              }}
-            />
-            <div className="relative z-10 py-12 md:py-24 px-8 text-white text-center">
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-2 md:mb-4">
-                {pageData.bannerTitle || currentCategory.mainCategory}
-              </h1>
-              {pageData.bannerSubtitle && (
-                <p className="text-lg md:text-xl lg:text-2xl">
-                  {pageData.bannerSubtitle}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Title Section (if no banner) */}
-        {!pageData?.bannerImage && (
-          <div className="mb-12">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              {pageData?.title || currentCategory.mainCategory}
-            </h1>
-          </div>
-        )}
+        {/* Title Section */}
+        <div className="mb-12">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            {pageData?.title || currentCategory.mainCategory}
+          </h1>
+          {pageData?.bannerSubtitle && (
+            <p className="text-lg text-gray-600">
+              {pageData.bannerSubtitle}
+            </p>
+          )}
+        </div>
 
         {/* Links Section */}
         {currentCategory.link.length > 0 && (

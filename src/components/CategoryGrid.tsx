@@ -5,32 +5,61 @@ import { useNavigation } from '../hooks/useNavigation';
 export default function CategoryGrid() {
   const { categories: contentfulCategories } = useNavigation();
 
+  // Debug log
+  console.log('CategoryGrid - Categories:', contentfulCategories);
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
       {contentfulCategories.map((category, index) => {
         const { categoryPage } = category;
         if (!categoryPage) return null;
 
-        // Check if the category has a banner image
-        const hasBannerImage = categoryPage.bannerImage?.fields?.file?.url;
+        // Debug log for each category
+        console.log(`Category ${index}:`, {
+          title: categoryPage.title,
+          bannerImage: categoryPage.bannerImage,
+          bannerBackgroundColor: categoryPage.bannerBackgroundColor
+        });
+
+        // Get background color
+        const backgroundColor = categoryPage.bannerBackgroundColor ? `#${categoryPage.bannerBackgroundColor}` : '#84D4B4';
+
+        // Get image URLs
+        const desktopImageUrl = categoryPage.bannerImage?.fields?.file?.url;
+        const mobileImageUrl = categoryPage.bannerImageMobile?.fields?.file?.url;
 
         return (
           <Link
             key={index}
             to={`/categorie/${category.slug}`}
-            className={`relative rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden group h-48 ${!hasBannerImage ? 'bg-[#84D4B4] hover:bg-[#6DBD9C]' : ''}`}
+            className="relative rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden group h-48"
+            style={{
+              backgroundColor,
+            } as React.CSSProperties}
           >
-            {/* Background image */}
-            {hasBannerImage && (
-              <div
-                className="absolute inset-0 bg-cover bg-center transition-transform group-hover:scale-105"
-                style={{
-                  backgroundImage: `url(${categoryPage.bannerImage?.fields?.file?.url})`,
-                }}
-              />
+            {/* Background image - always render if available, will be transparent */}
+            {(desktopImageUrl || mobileImageUrl) && (
+              <>
+                {/* Mobile image */}
+                {mobileImageUrl && (
+                  <div
+                    className="absolute inset-0 bg-cover bg-center min-[450px]:hidden"
+                    style={{
+                      backgroundImage: `url(${mobileImageUrl})`,
+                    }}
+                  />
+                )}
+                {/* Desktop image */}
+                {desktopImageUrl && (
+                  <div
+                    className="absolute inset-0 bg-cover bg-center hidden min-[450px]:block"
+                    style={{
+                      backgroundImage: `url(${desktopImageUrl})`,
+                    }}
+                  />
+                )}
+              </>
             )}
-
-            {/* No overlay - showing images directly */}
 
             {/* Content */}
             <div className="relative h-full flex flex-col z-10 text-white p-4">

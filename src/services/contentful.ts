@@ -98,8 +98,16 @@ export interface CategoryPage {
       };
     };
   };
+  bannerImageMobile?: {
+    fields: {
+      file: {
+        url: string;
+      };
+    };
+  };
   bannerTitle?: string;
   bannerSubtitle?: string;
+  bannerBackgroundColor?: string;
 }
 
 const generateSlug = (title: string): string => {
@@ -156,8 +164,10 @@ export const getCategoryPageBySlug = async (slug: string): Promise<CategoryPage 
       seoTitle: entry.fields.seoTitle as string,
       seoDescription: entry.fields.seoDescription as string,
       bannerImage: entry.fields.bannerImage as any,
+      bannerImageMobile: entry.fields.bannerImageMobile as any,
       bannerTitle: entry.fields.bannerTitle as string,
       bannerSubtitle: entry.fields.bannerSubtitle as string,
+      bannerBackgroundColor: entry.fields.bannerBackgroundColor as string,
     };
   } catch (error) {
     console.error('Error fetching category page:', error);
