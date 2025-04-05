@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -26,15 +26,57 @@ const getBackgroundColor = (color?: string) => {
 
 export default function BannerSlider({ banners }: BannerSliderProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
   const sliderRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1280);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe) {
+      nextSlide();
+    }
+    if (isRightSwipe) {
+      prevSlide();
+    }
+
+    setTouchStart(0);
+    setTouchEnd(0);
+  };
+
   const nextSlide = () => {
+    if (!isMobile) return;
     setCurrentIndex((prevIndex) => 
       prevIndex + 1 >= banners.length ? 0 : prevIndex + 1
     );
   };
 
   const prevSlide = () => {
+    if (!isMobile) return;
     setCurrentIndex((prevIndex) => 
       prevIndex - 1 < 0 ? banners.length - 1 : prevIndex - 1
     );
@@ -42,8 +84,8 @@ export default function BannerSlider({ banners }: BannerSliderProps) {
 
   if (banners.length === 0) return null;
 
-  // Determine if we need navigation based on screen size and number of banners
-  const needsNavigation = banners.length > 2; // Show navigation if more than 2 banners
+  // Only show navigation on mobile
+  const needsNavigation = isMobile && banners.length > 2;
 
   return (
     <div className="relative">
@@ -70,45 +112,61 @@ export default function BannerSlider({ banners }: BannerSliderProps) {
       {/* Slider Container */}
       <div 
         ref={sliderRef}
-        className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 overflow-hidden"
+        className="relative overflow-hidden"
       >
-        {banners.map((banner, index) => (
-          <div
-            key={banner.orderId}
-            className={`rounded-lg overflow-hidden relative min-h-[200px] md:min-h-[300px] group ${getBackgroundColor(banner.backgroundColor)}`}
-          >
-            {banner.backgroundImage?.fields?.file?.url && (
-              <div 
-                className="absolute inset-0"
-                style={{
-                  backgroundImage: `url(${banner.backgroundImage.fields.file.url})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }}
-              />
-            )}
-            <div className="relative z-10 p-5 md:p-6 h-full flex flex-col justify-between">
-              <div>
-                {banner.orderId < 3 && (
-                  <h2 className="text-2xl md:text-4xl font-bold text-white mb-4 font-heading">
-                    {banner.title}
-                  </h2>
-                )}
-                {banner.description && (
-                  <div className="text-[17px] md:text-[21px] text-white prose prose-invert prose-lg md:prose-xl font-sans">
-                    <ReactMarkdown>{banner.description}</ReactMarkdown>
-                  </div>
-                )}
+        <div 
+          className={`${
+            isMobile 
+              ? 'flex gap-6 transition-transform duration-300 ease-in-out' 
+              : 'grid grid-cols-3 gap-6'
+          }`}
+          style={isMobile ? { transform: `translateX(-${currentIndex * 50}%)` } : undefined}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {banners.map((banner, index) => (
+            <div
+              key={banner.orderId}
+              className={`${
+                isMobile 
+                  ? 'w-[calc(50%-12px)] flex-shrink-0' 
+                  : 'w-full'
+              } ${getBackgroundColor(banner.backgroundColor)} rounded-lg overflow-hidden relative min-h-[200px] md:min-h-[300px] group`}
+            >
+              {banner.backgroundImage?.fields?.file?.url && (
+                <div 
+                  className="absolute inset-0"
+                  style={{
+                    backgroundImage: `url(${banner.backgroundImage.fields.file.url})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                />
+              )}
+              <div className="relative z-10 p-5 md:p-6 h-full flex flex-col justify-between">
+                <div>
+                  {banner.orderId < 3 && (
+                    <h2 className="text-2xl md:text-4xl font-bold text-white mb-4 font-heading">
+                      {banner.title}
+                    </h2>
+                  )}
+                  {banner.description && (
+                    <div className="text-[17px] md:text-[21px] text-white prose prose-invert prose-lg md:prose-xl font-sans">
+                      <ReactMarkdown>{banner.description}</ReactMarkdown>
+                    </div>
+                  )}
+                </div>
+                <Link
+                  to={banner.buttonLink}
+                  className="inline-flex bg-white text-gray-900 px-4 md:px-6 py-2 md:py-3 rounded-full font-medium hover:bg-gray-50 transition-colors w-fit text-sm md:text-base"
+                >
+                  {banner.buttonText}
+                </Link>
               </div>
-              <Link
-                to={banner.buttonLink}
-                className="inline-flex bg-white text-gray-900 px-4 md:px-6 py-2 md:py-3 rounded-full font-medium hover:bg-gray-50 transition-colors w-fit text-sm md:text-base"
-              >
-                {banner.buttonText}
-              </Link>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Dots Indicator */}
