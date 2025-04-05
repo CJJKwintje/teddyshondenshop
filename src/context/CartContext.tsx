@@ -32,19 +32,23 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [cart]);
 
   const addToCart = (product: Product) => {
+    console.log('CartContext: Adding product to cart:', product);
+    
     setCart((currentCart) => {
       const existingItem = currentCart.find((item) => item.id === product.id);
-      if (existingItem) {
-        return currentCart.map((item) =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + (product.quantity || 1) }
-            : item
-        );
-      }
-      return [...currentCart, { 
-        ...product, 
-        quantity: product.quantity || 1,
-      }];
+      const newCart = existingItem
+        ? currentCart.map((item) =>
+            item.id === product.id
+              ? { ...item, quantity: item.quantity + (product.quantity || 1) }
+              : item
+          )
+        : [...currentCart, { 
+            ...product, 
+            quantity: product.quantity || 1,
+          }];
+      
+      console.log('CartContext: New cart state:', newCart);
+      return newCart;
     });
   };
 

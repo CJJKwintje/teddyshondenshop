@@ -241,7 +241,9 @@ export default function ProductPage() {
       quantity
     } as const;
     
+    console.log('Adding to cart from ProductPage:', product);
     addToCart(product);
+    
     // Track the add to cart event
     trackAddToCart({
       id: product.id.toString(),
