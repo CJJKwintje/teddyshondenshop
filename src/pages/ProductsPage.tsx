@@ -31,6 +31,14 @@ interface CategoryData {
       };
     };
   };
+  bannerImageMobile?: {
+    fields: {
+      file: {
+        url: string;
+      };
+    };
+  };
+  bannerBackgroundColor?: string;
 }
 
 type Categories = {
@@ -429,32 +437,50 @@ export default function ProductsPage() {
             >
               {Object.entries(CATEGORY_MAPPING).map(([key, { label }]) => {
                 const data = categoryData[key];
-                const imageUrl = data?.bannerImage?.fields?.file?.url;
+                const desktopImageUrl = data?.bannerImage?.fields?.file?.url;
+                const mobileImageUrl = data?.bannerImageMobile?.fields?.file?.url;
+                const backgroundColor = data?.bannerBackgroundColor ? `#${data.bannerBackgroundColor}` : '#84D4B4';
                 
                 return (
                   <button
                     key={key}
                     onClick={() => handleCategoryChange(key)}
-                    className="flex-none w-[calc(85%-1rem)] sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1rem)] xl:w-[calc(25%-1rem)] snap-start relative rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden group h-48 sm:h-48"
+                    className="flex-none w-[calc(85%-1rem)] sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1rem)] xl:w-[calc(25%-1rem)] snap-start relative rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden group h-48"
+                    style={{
+                      backgroundColor,
+                    } as React.CSSProperties}
                   >
-                    {imageUrl ? (
-                      <div 
-                        className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
-                        style={{ 
-                          backgroundImage: `url(${imageUrl})`,
-                          filter: selectedCategory === key ? 'brightness(0.6)' : 'brightness(0.8)'
-                        }}
-                      />
-                    ) : (
-                      <div className={`absolute inset-0 ${selectedCategory === key ? 'bg-gray-700' : 'bg-gray-500'}`} />
+                    {/* Background image - always render if available, will be transparent */}
+                    {(desktopImageUrl || mobileImageUrl) && (
+                      <>
+                        {/* Mobile image */}
+                        {mobileImageUrl && (
+                          <div
+                            className="absolute inset-0 bg-cover bg-center min-[450px]:hidden"
+                            style={{
+                              backgroundImage: `url(${mobileImageUrl})`
+                            }}
+                          />
+                        )}
+                        {/* Desktop image */}
+                        {desktopImageUrl && (
+                          <div
+                            className="absolute inset-0 bg-cover bg-center hidden min-[450px]:block"
+                            style={{
+                              backgroundImage: `url(${desktopImageUrl})`
+                            }}
+                          />
+                        )}
+                      </>
                     )}
-                    
-                    <div className="relative h-full p-6 flex flex-col justify-between z-10 text-white">
-                      <h3 className="text-xl font-semibold group-hover:text-white/90 transition-colors text-left">
+
+                    {/* Content */}
+                    <div className="relative h-full flex flex-col z-10 text-white p-4">
+                      <h3 className="text-lg min-[450px]:text-xl font-bold group-hover:text-white/90 transition-colors text-left">
                         {data?.title || label}
                       </h3>
                       {data?.bannerSubtitle && (
-                        <p className="text-white/80 line-clamp-2 text-sm text-left">
+                        <p className="text-white/80 line-clamp-2 text-sm text-left mt-1">
                           {data.bannerSubtitle}
                         </p>
                       )}
