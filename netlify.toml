@@ -4,7 +4,7 @@
   functions = "netlify/functions"
 
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
   NPM_FLAGS = "--no-optional"
   PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "false"
   PUPPETEER_EXECUTABLE_PATH = "/opt/buildhome/.cache/puppeteer/chrome/linux-134.0.6998.35/chrome-linux64/chrome"
@@ -86,7 +86,10 @@
 
 [functions]
   node_bundler = "esbuild"
+  external_node_modules = ["esbuild"]
 
 [functions.merchant-feed]
   timeout = 60
   memory = 1024
+  node_bundler = "esbuild"
+  external_node_modules = ["esbuild"]
