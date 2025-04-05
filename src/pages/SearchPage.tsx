@@ -89,15 +89,26 @@ export default function SearchPage() {
 
   const buildQuery = useCallback(() => {
     const terms = searchQuery.toLowerCase().split(' ').filter(Boolean);
-    const searchTerm = terms[0];
-    
     const knownBrands = ['renske', 'carnibest', 'farmfood', 'prins', 'nordic'];
     
-    if (knownBrands.includes(searchTerm)) {
-      return `(vendor:*${searchTerm}*)`;
+    // If it's a known brand, search by vendor
+    if (terms.some(term => knownBrands.includes(term))) {
+      const brandTerm = terms.find(term => knownBrands.includes(term));
+      return `vendor:${brandTerm}`;
     }
     
-    return `(title:*${searchTerm}* OR productType:*${searchTerm}* OR tag:*${searchTerm}*)`;
+    // Build a more precise search query using all terms
+    const searchConditions = terms.map(term => {
+      // For single words, search in title, productType, and tags
+      if (!term.includes('-')) {
+        return `(title:*${term}* OR productType:*${term}* OR tag:*${term}*)`;
+      }
+      // For hyphenated terms or phrases, search more exactly
+      return `(title:"${term}" OR productType:"${term}" OR tag:"${term}")`;
+    });
+    
+    // Combine all conditions with AND to make search more specific
+    return searchConditions.join(' AND ');
   }, [searchQuery]);
 
   const [result] = useQuery({
