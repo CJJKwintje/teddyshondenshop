@@ -128,7 +128,8 @@ const ProductImage = ({ image, alt }: { image: any; alt: string }) => {
   );
 };
 
-const cleanVariantTitle = (title: string) => {
+const cleanVariantTitle = (title: string | undefined) => {
+  if (!title) return '';
   // Remove anything in parentheses and trim whitespace
   return title.replace(/\([^)]*\)/g, '').trim();
 };

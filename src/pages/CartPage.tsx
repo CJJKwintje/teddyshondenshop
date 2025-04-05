@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
-import { Trash2, MinusCircle, PlusCircle, ArrowLeft, AlertCircle, Wifi, RefreshCcw, Plus, Minus } from 'lucide-react';
+import { Trash2, MinusCircle, PlusCircle, ArrowLeft, AlertCircle, Wifi, RefreshCcw, Plus, Minus, Truck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
-
-const formatPrice = (price: number): string => {
-  return price.toFixed(2).replace('.', ',');
-};
+import { useQuery } from 'urql';
+import { gql } from 'urql';
+import ProductCard from '../components/ProductCard';
+import { formatPrice } from '../utils/formatPrice';
 
 const CartPage: React.FC = () => {
   const { cart, removeFromCart, updateQuantity, createShopifyCheckout } = useCart();
@@ -20,6 +20,97 @@ const CartPage: React.FC = () => {
   const MINIMUM_ORDER_AMOUNT = 15;
   const isBelowMinimum = subtotal < MINIMUM_ORDER_AMOUNT;
   const remainingAmount = MINIMUM_ORDER_AMOUNT - subtotal;
+  const FREE_SHIPPING_THRESHOLD = 59;
+  const progressPercentage = Math.min((subtotal / FREE_SHIPPING_THRESHOLD) * 100, 100);
+  const remainingForFreeShipping = FREE_SHIPPING_THRESHOLD - subtotal;
+
+  const maxPrice = FREE_SHIPPING_THRESHOLD;
+  const [page, setPage] = useState(1);
+  const [cursors, setCursors] = useState<string[]>([]);
+  const COLLECTION_HANDLE = 'cartproducts'; // Collection handle for recommended products
+
+  const [recommendedProductsResult] = useQuery({
+    query: gql`
+      query GetRecommendedProducts($collectionHandle: String!, $first: Int!, $after: String) {
+        collection(handle: $collectionHandle) {
+          products(first: $first, after: $after) {
+            edges {
+              node {
+                id
+                handle
+                title
+                productType
+                images(first: 1) {
+                  edges {
+                    node {
+                      originalSrc
+                      altText
+                    }
+                  }
+                }
+                variants(first: 1) {
+                  edges {
+                    node {
+                      id
+                      price {
+                        amount
+                        currencyCode
+                      }
+                      compareAtPrice {
+                        amount
+                        currencyCode
+                      }
+                      quantityAvailable
+                    }
+                  }
+                }
+                priceRange {
+                  minVariantPrice {
+                    amount
+                    currencyCode
+                  }
+                }
+              }
+              cursor
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+          }
+        }
+      }
+    `,
+    variables: {
+      collectionHandle: COLLECTION_HANDLE,
+      first: 4,
+      after: page > 1 ? cursors[page - 2] : null
+    },
+    pause: shippingCost === 0, // Don't fetch if free shipping is already achieved
+    requestPolicy: 'network-only'
+  });
+
+  // Update cursors when data is loaded
+  React.useEffect(() => {
+    if (recommendedProductsResult.data?.collection?.products?.pageInfo?.endCursor) {
+      const newCursor = recommendedProductsResult.data.collection.products.pageInfo.endCursor;
+      
+      // Only add the cursor if it's not already in the array
+      if (!cursors.includes(newCursor)) {
+        setCursors(prev => [...prev, newCursor]);
+      }
+    }
+  }, [recommendedProductsResult.data]);
+
+  // Function to get the next page
+  const getNextPage = () => {
+    if (recommendedProductsResult.data?.collection?.products?.pageInfo?.hasNextPage) {
+      setPage(prev => prev + 1);
+    } else {
+      // If we've reached the end, go back to the first page
+      setPage(1);
+    }
+  };
 
   const handleCheckout = async (retry = false) => {
     if (isBelowMinimum) {
@@ -58,7 +149,7 @@ const CartPage: React.FC = () => {
 
   if (cart.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
+      <div className="container mx-auto px-4 py-16 text-center min-h-[60vh] flex flex-col items-center justify-center">
         <SEO
           title="Winkelwagen"
           description={getMetaDescription()}
@@ -101,6 +192,37 @@ const CartPage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
+          {/* Free Shipping Progress Bar */}
+          <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Truck className="h-5 w-5 text-primary" />
+                <span className="font-medium">Gratis verzending</span>
+              </div>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div
+                className={`h-2.5 rounded-full transition-all duration-300 ${
+                  progressPercentage <= 33
+                    ? 'bg-red-500'
+                    : progressPercentage <= 66
+                    ? 'bg-orange-500'
+                    : 'bg-[#63D7B2]'
+                }`}
+                style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+              />
+            </div>
+            {progressPercentage < 100 ? (
+              <p className="text-sm text-gray-600 mt-2">
+                Voeg nog {formatPrice(FREE_SHIPPING_THRESHOLD - subtotal)} toe aan je winkelwagen voor gratis verzending
+              </p>
+            ) : (
+              <p className="text-sm text-green-600 mt-2">
+                Je hebt gratis verzending bereikt! 🎉
+              </p>
+            )}
+          </div>
+
           <h1 className="text-2xl font-bold mb-6">Winkelwagen</h1>
           <div className="space-y-4">
             {cart.map((item) => (
@@ -160,11 +282,91 @@ const CartPage: React.FC = () => {
               </div>
             ))}
           </div>
+          
+          {/* Add space below cart products */}
+          <div className="mb-16"></div>
+
+          {/* Recommended Products Section */}
+          {shippingCost > 0 && (
+            <div className="mt-12">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-xl font-bold">Nog een paar speeltjes of snacks erbij en je bespaart €6,95 verzendkosten!</h2>
+                <button 
+                  onClick={getNextPage}
+                  className="p-2 rounded-full hover:bg-gray-100 transition-colors group"
+                  aria-label="Ververs aanbevolen producten"
+                >
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className={`h-5 w-5 text-gray-600 transition-transform duration-300 ${recommendedProductsResult.fetching ? 'animate-spin' : 'group-hover:rotate-180'}`}
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+              </div>
+              
+              {recommendedProductsResult.fetching ? (
+                <div className="text-center py-8">
+                  <p>Producten laden...</p>
+                </div>
+              ) : recommendedProductsResult.error ? (
+                <div className="text-center py-8 text-red-600">
+                  <p>Er is een fout opgetreden bij het laden van de aanbevolen producten.</p>
+                  <p className="text-sm mt-2">{recommendedProductsResult.error.message}</p>
+                </div>
+              ) : recommendedProductsResult.data?.collection?.products?.edges?.length ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {recommendedProductsResult.data.collection.products.edges.map(({ node: product }: any) => {
+                    const productId = product.id.split('/').pop();
+                    const variants = product.variants.edges;
+                    const firstVariant = variants[0]?.node;
+                    const hasAvailableVariant = variants.some(
+                      ({ node }: any) => node.quantityAvailable > 0
+                    );
+                    const compareAtPrice = firstVariant?.compareAtPrice
+                      ? parseFloat(firstVariant.compareAtPrice.amount)
+                      : undefined;
+                    
+                    return (
+                      <ProductCard
+                        key={productId}
+                        id={parseInt(productId)}
+                        handle={product.handle}
+                        title={product.title}
+                        category={product.productType || 'General'}
+                        imageUrl={product.images.edges[0]?.node.originalSrc}
+                        altText={product.images.edges[0]?.node.altText}
+                        price={parseFloat(product.priceRange.minVariantPrice.amount)}
+                        compareAtPrice={compareAtPrice}
+                        variantId={firstVariant?.id}
+                        hasAvailableVariant={hasAvailableVariant}
+                        variantsCount={variants.length}
+                        formattedPrice={formatPrice(parseFloat(product.priceRange.minVariantPrice.amount))}
+                        formattedCompareAtPrice={compareAtPrice ? formatPrice(compareAtPrice) : undefined}
+                        pageContext={{
+                          pageType: 'recommendation',
+                          pageName: 'Cart Page - Free Shipping Recommendations'
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-600">
+                  <p>Geen aanbevolen producten gevonden in deze prijsklasse.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg shadow p-6 sticky top-24">
             <h2 className="text-xl font-bold mb-4">Overzicht</h2>
+            
             <div className="space-y-3 mb-6">
               <div className="flex justify-between">
                 <span>Subtotaal</span>

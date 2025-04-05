@@ -25,6 +25,7 @@ interface ProductCardProps {
     subcategory?: string;
     searchQuery?: string;
   };
+  skipLink?: boolean;
 }
 
 function ProductImage({ imageUrl, altText, title }: { imageUrl: string; altText: string; title: string }) {
@@ -71,7 +72,8 @@ export default function ProductCard({
   variantsCount = 1,
   formattedPrice,
   formattedCompareAtPrice,
-  pageContext
+  pageContext,
+  skipLink = false
 }: ProductCardProps) {
   const { addToCart } = useCart();
   const [isAdded, setIsAdded] = React.useState(false);
@@ -116,11 +118,8 @@ export default function ProductCard({
     setTimeout(() => setIsAdded(false), 2000);
   };
 
-  return (
-    <Link 
-      to={`/product/${handle}`}
-      className="block group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
-    >
+  const cardContent = (
+    <>
       <div className="relative w-full pt-[100%] bg-white">
         <div className="absolute inset-0 overflow-hidden">
           <ProductImage
@@ -183,6 +182,23 @@ export default function ProductCard({
           )}
         </div>
       </div>
+    </>
+  );
+
+  if (skipLink) {
+    return (
+      <div className="block group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+        {cardContent}
+      </div>
+    );
+  }
+
+  return (
+    <Link 
+      to={`/product/${handle}`}
+      className="block group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
+    >
+      {cardContent}
     </Link>
   );
 }

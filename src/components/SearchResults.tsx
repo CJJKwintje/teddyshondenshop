@@ -95,6 +95,7 @@ export default function SearchResults({
                 formattedPrice={product.formattedPrice}
                 formattedCompareAtPrice={product.formattedCompareAtPrice}
                 pageContext={pageContext}
+                skipLink={true}
               />
             </Link>
           );
