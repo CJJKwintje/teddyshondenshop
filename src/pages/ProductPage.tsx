@@ -300,34 +300,61 @@ export default function ProductPage() {
 
   // Set up intersection observer for the original controls
   React.useEffect(() => {
-    // Check if element is in viewport on initial render
-    const checkInitialVisibility = () => {
+    // Skip if we don't have the ref yet
+    if (!originalControlsRef.current) return;
+
+    // Function to check if element is in viewport
+    const checkVisibility = () => {
       if (originalControlsRef.current) {
         const rect = originalControlsRef.current.getBoundingClientRect();
+        // Check if the element is in the viewport
+        // For mobile, we want to show the sticky bar when the original controls are not visible
         const isInViewport = rect.top >= 0 && rect.bottom <= window.innerHeight;
+        console.log('Initial visibility check:', { isInViewport, rect });
         setShowStickyBar(!isInViewport);
       }
     };
 
-    // Run initial check after a small delay to ensure DOM is fully rendered
-    const timeoutId = setTimeout(checkInitialVisibility, 100);
-
+    // Create an Intersection Observer to track when the original controls are in/out of view
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        setShowStickyBar(!entry.isIntersecting);
+      (entries) => {
+        // Get the most relevant entry (the one with the highest intersection ratio)
+        const entry = entries.reduce((prev, current) => 
+          (current.intersectionRatio > prev.intersectionRatio) ? current : prev
+        );
+        
+        // Show sticky bar when the original controls are not intersecting (out of view)
+        // Use a threshold of 0.5 to ensure the element is mostly out of view
+        const isVisible = entry.intersectionRatio > 0.5;
+        console.log('Intersection observer:', { 
+          isIntersecting: entry.isIntersecting,
+          intersectionRatio: entry.intersectionRatio,
+          isVisible
+        });
+        
+        setShowStickyBar(!isVisible);
       },
-      { threshold: 1.0 }
+      { 
+        // Use a higher threshold to detect when the element is mostly out of view
+        threshold: [0, 0.25, 0.5, 0.75, 1],
+        // Add a root margin to account for mobile browser UI elements
+        rootMargin: '0px 0px 100px 0px'
+      }
     );
 
-    if (originalControlsRef.current) {
-      observer.observe(originalControlsRef.current);
-    }
+    // Set up the observer
+    observer.observe(originalControlsRef.current);
+    console.log('Observer set up for:', originalControlsRef.current);
 
+    // Run initial check after a small delay to ensure DOM is fully rendered
+    const timeoutId = setTimeout(checkVisibility, 300);
+
+    // Clean up observer and timeout on unmount
     return () => {
       observer.disconnect();
       clearTimeout(timeoutId);
     };
-  }, []);
+  }, [data]); // Add data as a dependency to re-run when product data changes
 
   if (fetching) {
     return (
@@ -688,25 +715,30 @@ export default function ProductPage() {
         showStickyBar ? 'translate-y-0' : 'translate-y-full'
       }`}>
         <div className="max-w-7xl mx-auto space-y-4">
-          {/* Variant selector */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4">
-            {product.options.map((option: any) => {
-              const variantPrice = findVariantPrice(option.name, selectedOptions[option.name]);
-              return (
-                <button
-                  key={option.id}
-                  onClick={() => setShowVariantModal(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg text-sm whitespace-nowrap"
-                >
-                  <span className="text-gray-500">{option.name}:</span>
-                  <span className="font-medium">{cleanVariantTitle(selectedOptions[option.name])}</span>
-                  {variantPrice && (
-                    <span className="text-gray-500">€{formatPrice(variantPrice)}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          {/* Variant selector - only show when there are multiple variants */}
+          {product.options.some((option: any) => option.values.length > 1) && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4">
+              {product.options.map((option: any) => {
+                // Only show options that have multiple values
+                if (option.values.length <= 1) return null;
+                
+                const variantPrice = findVariantPrice(option.name, selectedOptions[option.name]);
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => setShowVariantModal(true)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg text-sm whitespace-nowrap"
+                  >
+                    <span className="text-gray-500">{option.name}:</span>
+                    <span className="font-medium">{cleanVariantTitle(selectedOptions[option.name])}</span>
+                    {variantPrice && (
+                      <span className="text-gray-500">€{formatPrice(variantPrice)}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* Quantity and Add to Cart */}
           <div className="flex items-center gap-4">
