@@ -1,6 +1,6 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Loader2, ChevronLeft, ChevronRight, SlidersHorizontal, Share2 } from 'lucide-react';
 import { useNavigation } from '../hooks/useNavigation';
 import { getCategoryPageBySlug, NavigationCategory, NavigationLink } from '../services/contentful';
 import { useQuery } from 'urql';
@@ -11,6 +11,10 @@ import Breadcrumbs from '../components/Breadcrumbs';
 import SearchResults from '../components/SearchResults';
 import Pagination from '../components/Pagination';
 import { formatPrice } from '../utils/formatPrice';
+import SearchFilters from '../components/SearchFilters';
+import MobileFilterMenu from '../components/MobileFilterMenu';
+import ActiveFilterTags from '../components/ActiveFilterTags';
+import BackToTop from '../components/BackToTop';
 
 const PRODUCTS_PER_PAGE = 12;
 
@@ -46,48 +50,79 @@ const CATEGORY_MAPPING: Record<string, Record<string, string[]>> = {
   },
   'hondenkleding': {
     'kleding': ['productType:"KLEDING"']
+  },
+  'hondenspeelgoed': {
+    'speelgoed': ['productType:"SPEELGOED"']
   }
 };
 
-const PRODUCT_QUERY = gql`
-  query GetProducts($query: String!) {
-    products(first: 250, query: $query) {
+const PRODUCT_CARD_FRAGMENT = gql`
+  fragment ProductCard on Product {
+    id
+    handle
+    title
+    productType
+    tags
+    vendor
+    variants(first: 1) {
       edges {
         node {
           id
-          handle
-          title
-          productType
-          tags
+          price {
+            amount
+            currencyCode
+          }
+          compareAtPrice {
+            amount
+            currencyCode
+          }
+          quantityAvailable
+        }
+      }
+    }
+    images(first: 1) {
+      edges {
+        node {
+          originalSrc
+          altText
+        }
+      }
+    }
+    priceRange {
+      minVariantPrice {
+        amount
+        currencyCode
+      }
+    }
+  }
+`;
+
+const PRODUCT_QUERY = gql`
+  query GetProducts($query: String!, $first: Int, $after: String) {
+    products(first: $first, query: $query, after: $after) {
+      edges {
+        node {
+          ...ProductCard
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+  ${PRODUCT_CARD_FRAGMENT}
+`;
+
+const GET_FILTERS_QUERY = gql`
+  query GetFiltersAndCounts($query: String!) {
+    products(first: 250, query: $query) {
+      edges {
+        node {
           vendor
-          variants(first: 1) {
-            edges {
-              node {
-                id
-                price {
-                  amount
-                  currencyCode
-                }
-                compareAtPrice {
-                  amount
-                  currencyCode
-                }
-                quantityAvailable
-              }
-            }
-          }
-          images(first: 1) {
-            edges {
-              node {
-                originalSrc
-                altText
-              }
-            }
-          }
           priceRange {
             minVariantPrice {
               amount
-              currencyCode
             }
           }
         }
@@ -113,6 +148,7 @@ interface ExtendedNavigationLink extends NavigationLink {
 export default function CategoryPage() {
   const { category } = useParams<{ category: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { categories, isLoading: isNavLoading, error: navError } = useNavigation();
   const [pageData, setPageData] = React.useState<any>(null);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -120,6 +156,60 @@ export default function CategoryPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [cursors, setCursors] = useState<Record<number, string>>({});
+  
+  // Filter state
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [availableBrands, setAvailableBrands] = useState<string[]>([]);
+  const [priceRanges, setPriceRanges] = useState<number[]>([]);
+
+  // Initialize filters from URL parameters
+  useEffect(() => {
+    const brandsParam = searchParams.get('brands');
+    const priceParam = searchParams.get('price');
+    const pageParam = searchParams.get('page');
+    
+    if (brandsParam) {
+      setSelectedBrands(brandsParam.split(','));
+    }
+    
+    if (priceParam) {
+      setSelectedPriceRanges([priceParam]);
+    }
+    
+    if (pageParam) {
+      const page = parseInt(pageParam, 10);
+      if (!isNaN(page) && page > 0) {
+        setCurrentPage(page);
+      }
+    }
+  }, [searchParams]);
+
+  // Update URL when filters change
+  const updateUrlParams = useCallback(() => {
+    const params = new URLSearchParams();
+    
+    if (selectedBrands.length > 0) {
+      params.set('brands', selectedBrands.join(','));
+    }
+    
+    if (selectedPriceRanges.length > 0) {
+      params.set('price', selectedPriceRanges[0]);
+    }
+    
+    if (currentPage > 1) {
+      params.set('page', currentPage.toString());
+    }
+    
+    setSearchParams(params);
+  }, [selectedBrands, selectedPriceRanges, currentPage, setSearchParams]);
+
+  // Update URL when filters or page changes
+  useEffect(() => {
+    updateUrlParams();
+  }, [selectedBrands, selectedPriceRanges, currentPage, updateUrlParams]);
 
   // Find the current category
   const currentCategory = categories.find(cat => cat.slug === category);
@@ -151,21 +241,97 @@ export default function CategoryPage() {
     
     // Create a strict query that only matches exact product types
     const productTypes = allQueries.map(query => query.split(':')[1].replace(/"/g, '')); // Extract just the type names
-    const finalQuery = productTypes.map(type => `product_type:${type}`).join(' OR ');
+    const productTypeQuery = productTypes.map(type => `product_type:${type}`).join(' OR ');
+    
+    // Build the complete query with filters
+    const queries: string[] = [];
+    
+    // Add product type filter
+    queries.push(`(${productTypeQuery})`);
+    
+    // Add brand filter
+    if (selectedBrands.length > 0) {
+      const brandQuery = selectedBrands
+        .map(brand => `(vendor:${brand})`)
+        .join(' OR ');
+      queries.push(`(${brandQuery})`);
+    }
+    
+    // Add price filter
+    if (selectedPriceRanges.length > 0) {
+      const priceQueries = selectedPriceRanges.map(range => {
+        const [min, max] = range.split('-').map(parseFloat);
+        return `(variants.price:>=${min} AND variants.price:<=${max})`;
+      });
+      queries.push(`(${priceQueries.join(' OR ')})`);
+    }
+    
+    const finalQuery = queries.join(' AND ');
     console.log('Final Shopify query:', finalQuery);
     
     return finalQuery;
-  }, [category]);
+  }, [category, selectedBrands, selectedPriceRanges]);
 
   // Products Query with dynamic query string
   const [result] = useQuery({ 
     query: PRODUCT_QUERY,
     variables: {
-      query: buildProductQuery()
+      query: buildProductQuery(),
+      first: PRODUCTS_PER_PAGE,
+      after: cursors[currentPage - 1] || null
     },
     pause: !currentCategory // Pause the query until we have the category data
   });
   const { data, fetching: productsFetching, error: productsError } = result;
+
+  // Fetch filters
+  const [filtersResult] = useQuery({
+    query: GET_FILTERS_QUERY,
+    variables: {
+      query: buildProductQuery().split(' AND ')[0] // Only use the product type filter to get all brands and prices
+    },
+    pause: !currentCategory
+  });
+
+  // Store cursor for next page when we get results
+  useEffect(() => {
+    if (data?.products?.pageInfo?.hasNextPage) {
+      setCursors(prev => ({
+        ...prev,
+        [currentPage]: data.products.pageInfo.endCursor
+      }));
+    }
+  }, [data, currentPage]);
+
+  // Process available filters from initial query
+  const processFilters = useCallback(() => {
+    if (!filtersResult.data?.products?.edges) return {
+      availableBrands: [],
+      priceRanges: []
+    };
+
+    const products = filtersResult.data.products.edges;
+    const brands = new Set<string>();
+    const prices = new Set<number>();
+
+    products.forEach(({ node }: any) => {
+      if (node.vendor) brands.add(node.vendor);
+      const price = parseFloat(node.priceRange.minVariantPrice.amount);
+      prices.add(Math.floor(price / 25) * 25); // Round to nearest 25
+    });
+
+    return {
+      availableBrands: Array.from(brands),
+      priceRanges: Array.from(prices).sort((a, b) => a - b)
+    };
+  }, [filtersResult.data]);
+
+  // Update available filters when filter data changes
+  useEffect(() => {
+    const { availableBrands: brands, priceRanges: prices } = processFilters();
+    setAvailableBrands(brands);
+    setPriceRanges(prices);
+  }, [processFilters]);
 
   // Log the raw query and response
   React.useEffect(() => {
@@ -212,13 +378,55 @@ export default function CategoryPage() {
     });
   }, [data]);
 
-  // Client-side pagination
-  const paginatedProducts = useMemo(() => {
-    const startIndex = (currentPage - 1) * PRODUCTS_PER_PAGE;
-    return processedProducts.slice(startIndex, startIndex + PRODUCTS_PER_PAGE);
-  }, [processedProducts, currentPage]);
+  // Handle page change
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+    // Scroll to top of the page smoothly
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }, []);
 
-  const totalPages = Math.ceil(processedProducts.length / PRODUCTS_PER_PAGE);
+  // Filter handlers
+  const handleFilterChange = (type: 'price' | 'brand' | 'type', value: string) => {
+    setCurrentPage(1);
+    setCursors({});
+
+    if (type === 'price') {
+      setSelectedPriceRanges(prev =>
+        prev.includes(value) ? prev.filter(range => range !== value) : [value]
+      );
+    } else if (type === 'brand') {
+      setSelectedBrands(prev =>
+        prev.includes(value) ? prev.filter(brand => brand !== value) : [...prev, value]
+      );
+    }
+  };
+
+  const clearFilters = () => {
+    setSelectedPriceRanges([]);
+    setSelectedBrands([]);
+    setCurrentPage(1);
+    setCursors({});
+    // Clear URL parameters
+    setSearchParams({});
+  };
+
+  const handleRemoveFilter = (type: 'price' | 'brand', value: string) => {
+    setCurrentPage(1);
+    setCursors({});
+
+    if (type === 'price') {
+      setSelectedPriceRanges(prev =>
+        prev.filter(range => range !== value)
+      );
+    } else if (type === 'brand') {
+      setSelectedBrands(prev =>
+        prev.filter(brand => brand !== value)
+      );
+    }
+  };
 
   // Fetch category page data from Contentful
   React.useEffect(() => {
@@ -240,6 +448,27 @@ export default function CategoryPage() {
 
     fetchPageData();
   }, [category]);
+
+  // Generate shareable URL for current filters
+  const getShareableUrl = useCallback(() => {
+    const baseUrl = window.location.origin + window.location.pathname;
+    const params = new URLSearchParams();
+    
+    if (selectedBrands.length > 0) {
+      params.set('brands', selectedBrands.join(','));
+    }
+    
+    if (selectedPriceRanges.length > 0) {
+      params.set('price', selectedPriceRanges[0]);
+    }
+    
+    if (currentPage > 1) {
+      params.set('page', currentPage.toString());
+    }
+    
+    const queryString = params.toString();
+    return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+  }, [selectedBrands, selectedPriceRanges, currentPage]);
 
   if (isLoading || isNavLoading) {
     return (
@@ -390,43 +619,69 @@ export default function CategoryPage() {
             Alle producten
           </h2>
           
-          {productsFetching ? (
-            <div className="flex justify-center">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-            </div>
-          ) : productsError ? (
-            <div className="text-center text-red-600">
-              Er is een fout opgetreden bij het laden van de producten.
-            </div>
-          ) : (
-            <>
-              <SearchResults
-                products={paginatedProducts}
-                isLoading={false}
-                pageContext={{
-                  pageType: 'category',
-                  pageName: currentCategory.mainCategory,
-                  category: category
-                }}
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Filters - Desktop */}
+            <aside className="hidden lg:block lg:w-72 flex-shrink-0">
+              <SearchFilters
+                availableBrands={availableBrands}
+                selectedBrands={selectedBrands}
+                selectedPriceRanges={selectedPriceRanges}
+                onFilterChange={handleFilterChange}
+                onClearFilters={clearFilters}
+              />
+            </aside>
+
+            {/* Main Content */}
+            <main className="flex-1">
+              <div className="flex items-center justify-end mb-6">
+                <button
+                  onClick={() => setIsFilterMenuOpen(true)}
+                  className="lg:hidden inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                  Filters
+                </button>
+              </div>
+
+              <ActiveFilterTags
+                selectedBrands={selectedBrands}
+                selectedPriceRanges={selectedPriceRanges}
+                onRemoveFilter={handleRemoveFilter}
               />
               
-              {totalPages > 1 && (
-                <div className="mt-8">
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={(page) => {
-                      setCurrentPage(page);
-                      window.scrollTo({
-                        top: 0,
-                        behavior: 'smooth'
-                      });
+              {productsFetching ? (
+                <div className="flex justify-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                </div>
+              ) : productsError ? (
+                <div className="text-center text-red-600">
+                  Er is een fout opgetreden bij het laden van de producten.
+                </div>
+              ) : (
+                <>
+                  <SearchResults
+                    products={processedProducts}
+                    isLoading={false}
+                    pageContext={{
+                      pageType: 'category',
+                      pageName: currentCategory.mainCategory,
+                      category: category
                     }}
                   />
-                </div>
+                  
+                  {data?.products?.pageInfo?.hasNextPage && (
+                    <div className="mt-8">
+                      <Pagination
+                        currentPage={currentPage}
+                        totalPages={currentPage + (data.products.pageInfo.hasNextPage ? 1 : 0)}
+                        onPageChange={handlePageChange}
+                      />
+                    </div>
+                  )}
+                </>
               )}
-            </>
-          )}
+            </main>
+          </div>
         </div>
 
         {/* Content Section */}
@@ -436,6 +691,18 @@ export default function CategoryPage() {
           </div>
         )}
       </div>
+
+      <MobileFilterMenu
+        isOpen={isFilterMenuOpen}
+        onClose={() => setIsFilterMenuOpen(false)}
+        availableBrands={availableBrands}
+        selectedBrands={selectedBrands}
+        selectedPriceRanges={selectedPriceRanges}
+        onFilterChange={handleFilterChange}
+        onClearFilters={clearFilters}
+      />
+
+      <BackToTop />
     </div>
   );
 }
