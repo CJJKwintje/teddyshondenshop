@@ -17,6 +17,11 @@
   functionsPort = 9999
   timeout = 60
 
+[dev.environment]
+  FTP_HOST = "ftp.vdmdtg.nl"
+  FTP_USER = "TEDDYSHONDENSHOP"
+  FTP_PASSWORD = "FnoAFj02086h"
+
 # Handle assets first
 [[redirects]]
   from = "/assets/*"
@@ -84,8 +89,16 @@
   status = 200
   force = true
 
+# Handle testje-julius function
+[[redirects]]
+  from = "/testje-julius"
+  to = "/.netlify/functions/testje-julius"
+  status = 200
+  force = true
+
 [functions]
   node_bundler = "esbuild"
+  included_files = ["requirements.txt"]
 
 [functions.merchant-feed]
   timeout = 60

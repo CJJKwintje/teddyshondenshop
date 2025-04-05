@@ -140,6 +140,7 @@ const BannerSkeleton = ({ isSmall = false }: { isSmall?: boolean }) => (
 );
 
 const HomePage: React.FC = () => {
+  
   const [result] = useQuery({ query: PRODUCTS_QUERY });
   const { data, fetching, error } = result;
   const [banners, setBanners] = useState<HomepageBanner[]>([]);
@@ -205,7 +206,7 @@ const HomePage: React.FC = () => {
       setIsSubmitting(false);
     }
   };
-
+  
   return (
     <main className="bg-gray-50">
       <div className="container mx-auto px-4 py-8">
@@ -395,6 +396,26 @@ const HomePage: React.FC = () => {
               </p>
             )}
           </div>
+        </section>
+
+        {/* Test Function Button */}
+        <section className="mb-8 text-center">
+          <button
+            onClick={async () => {
+              try {
+                const response = await fetch('/.netlify/functions/testje-julius');
+                const data = await response.json();
+                console.log('Function response:', data);
+                alert(`Function response: ${data.message}`);
+              } catch (error) {
+                console.error('Error calling function:', error);
+                alert('Error calling function. Check console for details.');
+              }
+            }}
+            className="px-6 py-3 bg-blue-500 text-white rounded-full font-medium hover:bg-blue-600 transition-colors"
+          >
+            Test FTP Function
+          </button>
         </section>
       </div>
     </main>
