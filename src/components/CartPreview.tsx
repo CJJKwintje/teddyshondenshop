@@ -10,14 +10,45 @@ const CartPreview: React.FC = () => {
   const location = useLocation();
   const [isVisible, setIsVisible] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
+  const prevCartLengthRef = useRef<number>(cart.length);
+  const prevTotalItemsRef = useRef<number>(0);
+  const isInitialRenderRef = useRef<boolean>(true);
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  
+  // Calculate total number of items in cart
+  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Show preview when cart changes (item added)
+  // Show preview when cart changes (item added or quantity changed)
   useEffect(() => {
-    if (cart.length > 0) {
+    // Debug log to help diagnose the issue
+    console.log('Cart changed:', {
+      cartLength: cart.length,
+      prevCartLength: prevCartLengthRef.current,
+      totalItems,
+      prevTotalItems: prevTotalItemsRef.current,
+      isInitialRender: isInitialRenderRef.current
+    });
+    
+    // Skip showing preview on initial render
+    if (isInitialRenderRef.current) {
+      isInitialRenderRef.current = false;
+      prevCartLengthRef.current = cart.length;
+      prevTotalItemsRef.current = totalItems;
+      return;
+    }
+    
+    // Show preview if:
+    // 1. A new item was added (cart length increased)
+    // 2. Quantity of an existing item was increased (total items increased but cart length stayed the same)
+    if (cart.length > prevCartLengthRef.current || totalItems > prevTotalItemsRef.current) {
+      console.log('Showing cart preview');
       setIsVisible(true);
     }
-  }, [cart.length]);
+    
+    // Update the previous values for the next comparison
+    prevCartLengthRef.current = cart.length;
+    prevTotalItemsRef.current = totalItems;
+  }, [cart.length, totalItems]);
 
   // Hide preview when clicking outside
   useClickOutside(previewRef, () => {
@@ -39,7 +70,7 @@ const CartPreview: React.FC = () => {
             <h3 className="font-semibold">Winkelwagen</h3>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-gray-600">{cart.length} items</span>
+            <span className="text-gray-600">{totalItems} items</span>
             <button
               onClick={() => setIsVisible(false)}
               className="text-gray-400 hover:text-gray-600"
