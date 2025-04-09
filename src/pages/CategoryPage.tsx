@@ -15,46 +15,24 @@ import SearchFilters from '../components/SearchFilters';
 import MobileFilterMenu from '../components/MobileFilterMenu';
 import ActiveFilterTags from '../components/ActiveFilterTags';
 import BackToTop from '../components/BackToTop';
+import { trackPageView, trackFilterUse, trackPaginationClick, trackProductListView } from '../utils/analytics';
 
+const PRODUCTS_PREFETCH_COUNT = 24;
 const PRODUCTS_PER_PAGE = 12;
 
-// Category mapping for Shopify queries
-const CATEGORY_MAPPING: Record<string, Record<string, string[]>> = {
-  'hondenvoeding': {
-    'diepvriesvoer': ['productType:"DIEPVRIESVOER"'],
-    'droogvoer': ['productType:"DROOGVOER"'],
-    'natvoer': ['productType:"NATVOER"'],
-    'voer-drinkbakken': ['productType:"VOERBAK"', 'productType:"DRINKBAK"']
-  },
-  'hondensnacks': {
-    'snacks': ['productType:"SNACKS"'],
-    'snacks-gedroogd': ['productType:"SNACKS GEDROOGD"'],
-    'snacks-gist': ['productType:"SNACKS GIST"'],
-    'snacks-hard': ['productType:"SNACKS HARD"'],
-    'snacks-kauw': ['productType:"SNACKS KAUW"'],
-    'snacks-koek': ['productType:"SNACKS KOEK"'],
-    'snacks-zacht': ['productType:"SNACKS ZACHT"']
-  },
-  'op-pad': {
-    'halsbanden-met-lichtjes': ['productType:"HALSBANDEN MET LICHTJES"'],
-    'halsbanden-lijnen-kunstleer': ['productType:"HALSBANDEN/LIJNEN KUNSTLEER"'],
-    'halsbanden-lijnen-leer': ['productType:"HALSBANDEN/LIJNEN LEER"'],
-    'halsbanden-lijnen-nylon': ['productType:"HALSBANDEN/LIJNEN NYLON"'],
-    'halsbanden-lijnen-overig': ['productType:"HALSBANDEN/LIJNEN OVERIG"'],
-    'hondentas': ['productType:"HONDENTAS"'],
-    'outdoor': ['productType:"OUTDOOR"'],
-    'vervoerbox': ['productType:"VERVOERBOX"']
-  },
-  'slapen': {
-    'bedden-manden-kussens': ['productType:"BEDDEN/MANDEN/KUSSENS"']
-  },
-  'hondenkleding': {
-    'kleding': ['productType:"KLEDING"']
-  },
-  'hondenspeelgoed': {
-    'speelgoed': ['productType:"SPEELGOED"']
-  }
-};
+// Extend the NavigationLink fields type to include backgroundImage and backgroundColor
+interface ExtendedNavigationLink extends NavigationLink {
+  fields: NavigationLink['fields'] & {
+    backgroundImage?: {
+      fields: {
+        file: {
+          url: string;
+        };
+      };
+    };
+    backgroundColor?: string;
+  };
+}
 
 const PRODUCT_CARD_FRAGMENT = gql`
   fragment ProductCard on Product {
@@ -97,32 +75,41 @@ const PRODUCT_CARD_FRAGMENT = gql`
   }
 `;
 
-const PRODUCT_QUERY = gql`
-  query GetProducts($query: String!, $first: Int, $after: String) {
-    products(first: $first, query: $query, after: $after) {
-      edges {
-        node {
-          ...ProductCard
+// New query to fetch products by collection handle with filters
+const COLLECTION_PRODUCTS_QUERY = gql`
+  query GetCollectionProducts($handle: String!, $first: Int, $after: String) {
+    collection(handle: $handle) {
+      id
+      title
+      handle
+      products(first: $first, after: $after) {
+        edges {
+          node {
+            ...ProductCard
+          }
         }
-      }
-      pageInfo {
-        hasNextPage
-        endCursor
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
       }
     }
   }
   ${PRODUCT_CARD_FRAGMENT}
 `;
 
-const GET_FILTERS_QUERY = gql`
-  query GetFiltersAndCounts($query: String!) {
-    products(first: 250, query: $query) {
-      edges {
-        node {
-          vendor
-          priceRange {
-            minVariantPrice {
-              amount
+// Query to get all products in a collection for filter options
+const GET_COLLECTION_FILTERS_QUERY = gql`
+  query GetCollectionFilters($handle: String!) {
+    collection(handle: $handle) {
+      products(first: 250) {
+        edges {
+          node {
+            vendor
+            priceRange {
+              minVariantPrice {
+                amount
+              }
             }
           }
         }
@@ -130,20 +117,6 @@ const GET_FILTERS_QUERY = gql`
     }
   }
 `;
-
-// Extend the NavigationLink fields type to include backgroundImage and backgroundColor
-interface ExtendedNavigationLink extends NavigationLink {
-  fields: NavigationLink['fields'] & {
-    backgroundImage?: {
-      fields: {
-        file: {
-          url: string;
-        };
-      };
-    };
-    backgroundColor?: string;
-  };
-}
 
 export default function CategoryPage() {
   const { category } = useParams<{ category: string }>();
@@ -157,6 +130,9 @@ export default function CategoryPage() {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [cursors, setCursors] = useState<Record<number, string>>({});
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
   
   // Filter state
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
@@ -169,7 +145,6 @@ export default function CategoryPage() {
   useEffect(() => {
     const brandsParam = searchParams.get('brands');
     const priceParam = searchParams.get('price');
-    const pageParam = searchParams.get('page');
     
     if (brandsParam) {
       setSelectedBrands(brandsParam.split(','));
@@ -177,13 +152,6 @@ export default function CategoryPage() {
     
     if (priceParam) {
       setSelectedPriceRanges([priceParam]);
-    }
-    
-    if (pageParam) {
-      const page = parseInt(pageParam, 10);
-      if (!isNaN(page) && page > 0) {
-        setCurrentPage(page);
-      }
     }
   }, [searchParams]);
 
@@ -199,17 +167,8 @@ export default function CategoryPage() {
       params.set('price', selectedPriceRanges[0]);
     }
     
-    if (currentPage > 1) {
-      params.set('page', currentPage.toString());
-    }
-    
     setSearchParams(params);
-  }, [selectedBrands, selectedPriceRanges, currentPage, setSearchParams]);
-
-  // Update URL when filters or page changes
-  useEffect(() => {
-    updateUrlParams();
-  }, [selectedBrands, selectedPriceRanges, currentPage, updateUrlParams]);
+  }, [selectedBrands, selectedPriceRanges, setSearchParams]);
 
   // Find the current category
   const currentCategory = categories.find(cat => cat.slug === category);
@@ -222,95 +181,75 @@ export default function CategoryPage() {
 
   const subcategories = getAllSubcategories();
 
-  // Build query from category mapping
-  const buildProductQuery = useCallback(() => {
-    if (!category) return '';
+  // Get collection handle from category
+  const getCollectionHandle = useCallback(() => {
+    if (!category || !currentCategory) return '';
     
-    console.log('Building query for category:', category);
-    
-    // Get the mapping for the current main category
-    const categoryMap = CATEGORY_MAPPING[category.toLowerCase()];
-    if (!categoryMap) {
-      console.warn(`No category mapping found for: ${category}`);
-      return '';
-    }
+    // Use the category title as the collection handle
+    // Convert to lowercase and replace spaces with hyphens
+    return currentCategory.mainCategory.toLowerCase().replace(/\s+/g, '-');
+  }, [category, currentCategory]);
 
-    // Get all product type queries for this category
-    const allQueries = Object.values(categoryMap).flat();
-    console.log('All product type queries:', allQueries);
-    
-    // Create a strict query that only matches exact product types
-    const productTypes = allQueries.map(query => query.split(':')[1].replace(/"/g, '')); // Extract just the type names
-    const productTypeQuery = productTypes.map(type => `product_type:${type}`).join(' OR ');
-    
-    // Build the complete query with filters
-    const queries: string[] = [];
-    
-    // Add product type filter
-    queries.push(`(${productTypeQuery})`);
-    
-    // Add brand filter
-    if (selectedBrands.length > 0) {
-      const brandQuery = selectedBrands
-        .map(brand => `(vendor:${brand})`)
-        .join(' OR ');
-      queries.push(`(${brandQuery})`);
-    }
-    
-    // Add price filter
-    if (selectedPriceRanges.length > 0) {
-      const priceQueries = selectedPriceRanges.map(range => {
-        const [min, max] = range.split('-').map(parseFloat);
-        return `(variants.price:>=${min} AND variants.price:<=${max})`;
-      });
-      queries.push(`(${priceQueries.join(' OR ')})`);
-    }
-    
-    const finalQuery = queries.join(' AND ');
-    console.log('Final Shopify query:', finalQuery);
-    
-    return finalQuery;
-  }, [category, selectedBrands, selectedPriceRanges]);
-
-  // Products Query with dynamic query string
+  // Products Query with collection handle
+  const hasActiveFilters = selectedBrands.length > 0 || selectedPriceRanges.length > 0;
+  
   const [result] = useQuery({ 
-    query: PRODUCT_QUERY,
+    query: COLLECTION_PRODUCTS_QUERY,
     variables: {
-      query: buildProductQuery(),
-      first: PRODUCTS_PER_PAGE,
-      after: cursors[currentPage - 1] || null
+      handle: getCollectionHandle(),
+      first: hasActiveFilters ? 250 : PRODUCTS_PREFETCH_COUNT,
+      after: hasActiveFilters ? null : (cursors[currentPage - 1] || null),
+      filtersKey: `${selectedBrands.join(',')}-${selectedPriceRanges.join(',')}` // triggers re-fetch
     },
-    pause: !currentCategory // Pause the query until we have the category data
+    pause: !currentCategory
   });
   const { data, fetching: productsFetching, error: productsError } = result;
 
   // Fetch filters
   const [filtersResult] = useQuery({
-    query: GET_FILTERS_QUERY,
+    query: GET_COLLECTION_FILTERS_QUERY,
     variables: {
-      query: buildProductQuery().split(' AND ')[0] // Only use the product type filter to get all brands and prices
+      handle: getCollectionHandle()
     },
     pause: !currentCategory
   });
 
-  // Store cursor for next page when we get results
+  // Store cursor and accumulate products when we get results
   useEffect(() => {
-    if (data?.products?.pageInfo?.hasNextPage) {
-      setCursors(prev => ({
-        ...prev,
-        [currentPage]: data.products.pageInfo.endCursor
-      }));
+    if (!data?.collection?.products?.edges) return;
+  
+    const fetchedProducts = data.collection.products.edges;
+    
+    setCursors(prev => ({
+      ...prev,
+      [currentPage]: data.collection.products.pageInfo.endCursor
+    }));
+    
+    if (currentPage === 1) {
+      setAllProducts(fetchedProducts);
+      setHasMore(data.collection.products.pageInfo.hasNextPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      setAllProducts(prev => {
+        // When loading more, only add products that aren't already in the list
+        const existingIds = new Set(prev.map(p => p.node.id));
+        const newProducts = fetchedProducts.filter((p: { node: { id: string } }) => !existingIds.has(p.node.id));
+        return [...prev, ...newProducts];
+      });
     }
+    
+    setHasMore(data.collection.products.pageInfo.hasNextPage);
+    setIsLoadingMore(false);
   }, [data, currentPage]);
 
   // Process available filters from initial query
   const processFilters = useCallback(() => {
-    if (!filtersResult.data?.products?.edges) return {
+    if (!filtersResult.data?.collection?.products?.edges) return {
       availableBrands: [],
       priceRanges: []
     };
 
-    const products = filtersResult.data.products.edges;
+    const products = filtersResult.data.collection.products.edges;
     const brands = new Set<string>();
     const prices = new Set<number>();
 
@@ -333,30 +272,32 @@ export default function CategoryPage() {
     setPriceRanges(prices);
   }, [processFilters]);
 
-  // Log the raw query and response
-  React.useEffect(() => {
-    if (data) {
-      console.group('Shopify Query Details');
-      console.log('Raw query sent to Shopify:', buildProductQuery());
-      console.log('Raw Shopify response:', data);
-      console.log('Product types in response:', data.products.edges.map(({ node }: any) => node.productType));
-      console.groupEnd();
-    }
-  }, [data, buildProductQuery]);
-
-  // Process products
+  // Process products with filters
   const processedProducts = useMemo(() => {
-    if (!data?.products?.edges) return [];
+    if (!allProducts.length) return [];
 
-    console.group('Processed Products');
-    console.log('Number of products returned:', data.products.edges.length);
-    console.log('Products by type:', data.products.edges.reduce((acc: any, { node }: any) => {
-      acc[node.productType] = (acc[node.productType] || 0) + 1;
-      return acc;
-    }, {}));
-    console.groupEnd();
+    // Apply filters to the products
+    let filteredProducts = allProducts;
+    
+    // Filter by brand
+    if (selectedBrands.length > 0) {
+      filteredProducts = filteredProducts.filter(({ node }: any) => 
+        selectedBrands.includes(node.vendor)
+      );
+    }
+    
+    // Filter by price range
+    if (selectedPriceRanges.length > 0) {
+      filteredProducts = filteredProducts.filter(({ node }: any) => {
+        const price = parseFloat(node.priceRange.minVariantPrice.amount);
+        return selectedPriceRanges.some(range => {
+          const [min, max] = range.split('-').map(parseFloat);
+          return price >= min && price <= max;
+        });
+      });
+    }
 
-    return data.products.edges.map(({ node }: any) => {
+    return filteredProducts.map(({ node }: any) => {
       const variant = node.variants.edges[0]?.node;
       const compareAtPrice = variant?.compareAtPrice
         ? parseFloat(variant.compareAtPrice.amount)
@@ -376,46 +317,69 @@ export default function CategoryPage() {
         }
       };
     });
-  }, [data]);
+  }, [allProducts, selectedBrands, selectedPriceRanges]);
 
-  // Handle page change
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-    // Scroll to top of the page smoothly
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
-  }, []);
+  // Handle loading more products
+  const handleLoadMore = useCallback(() => {
+    if (isLoadingMore || !hasMore) return;
+    
+    if (!data?.collection?.products?.pageInfo?.hasNextPage) {
+      setHasMore(false);
+      return;
+    }
+    
+    setIsLoadingMore(true);
+    setCurrentPage(prev => prev + 1);
+  }, [isLoadingMore, hasMore, data]);
 
   // Filter handlers
   const handleFilterChange = (type: 'price' | 'brand' | 'type', value: string) => {
+    // Reset pagination and product states
     setCurrentPage(1);
     setCursors({});
+    setHasMore(true);
+    setAllProducts([]);
+    setIsLoadingMore(false);
 
     if (type === 'price') {
       setSelectedPriceRanges(prev =>
         prev.includes(value) ? prev.filter(range => range !== value) : [value]
       );
     } else if (type === 'brand') {
-      setSelectedBrands(prev =>
-        prev.includes(value) ? prev.filter(brand => brand !== value) : [...prev, value]
-      );
+      setSelectedBrands(prev => {
+        const newBrands = prev.includes(value) 
+          ? prev.filter(brand => brand !== value)
+          : [...prev, value];
+        return newBrands;
+      });
+    }
+
+    // Track filter usage
+    if (type !== 'type') {
+      trackFilterUse(type, value, { category });
     }
   };
 
   const clearFilters = () => {
+    // Reset all states
     setSelectedPriceRanges([]);
     setSelectedBrands([]);
     setCurrentPage(1);
     setCursors({});
+    setHasMore(true);
+    setAllProducts([]);
+    setIsLoadingMore(false);
     // Clear URL parameters
     setSearchParams({});
   };
 
   const handleRemoveFilter = (type: 'price' | 'brand', value: string) => {
+    // Reset pagination state
     setCurrentPage(1);
     setCursors({});
+    setHasMore(true);
+    setAllProducts([]);
+    setIsLoadingMore(false);
 
     if (type === 'price') {
       setSelectedPriceRanges(prev =>
@@ -462,21 +426,117 @@ export default function CategoryPage() {
       params.set('price', selectedPriceRanges[0]);
     }
     
-    if (currentPage > 1) {
-      params.set('page', currentPage.toString());
-    }
-    
     const queryString = params.toString();
     return queryString ? `${baseUrl}?${queryString}` : baseUrl;
-  }, [selectedBrands, selectedPriceRanges, currentPage]);
+  }, [selectedBrands, selectedPriceRanges]);
 
+  // Full page skeleton loading (initial page load)
   if (isLoading || isNavLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Breadcrumbs Skeleton */}
+          <div className="mb-8">
+            <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
+          </div>
+
+          {/* Title Skeleton */}
+          <div className="mb-8">
+            <div className="h-8 w-64 bg-gray-200 rounded animate-pulse" />
+          </div>
+
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Filters Skeleton - Desktop */}
+            <aside className="hidden lg:block lg:w-72 flex-shrink-0">
+              <div className="bg-white rounded-lg shadow-sm p-4">
+                <div className="h-6 w-1/2 bg-gray-200 rounded animate-pulse mb-4" />
+                <div className="space-y-2">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-4 w-full bg-gray-200 rounded animate-pulse" />
+                  ))}
+                </div>
+              </div>
+            </aside>
+
+            {/* Main Content */}
+            <main className="flex-1">
+              {/* Mobile Filter Button Skeleton */}
+              <div className="flex items-center justify-end mb-6">
+                <div className="h-10 w-24 bg-gray-200 rounded animate-pulse" />
+              </div>
+
+              {/* Active Filters Skeleton */}
+              <div className="mb-6 flex gap-2">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="h-8 w-32 bg-gray-200 rounded animate-pulse" />
+                ))}
+              </div>
+              
+              {/* Product Grid Skeleton */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden">
+                    <div className="aspect-square bg-gray-200 animate-pulse" />
+                    <div className="p-4">
+                      <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse mb-2" />
+                      <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse mb-4" />
+                      <div className="h-8 bg-gray-200 rounded animate-pulse" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </main>
+          </div>
+        </div>
+
+        <BackToTop />
       </div>
     );
   }
+
+  // Product grid skeleton loading (when fetching products)
+  const renderProductGrid = () => {
+    if (productsFetching) {
+      return (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="aspect-square bg-gray-200 animate-pulse" />
+              <div className="p-4">
+                <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse mb-2" />
+                <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse mb-4" />
+                <div className="h-8 bg-gray-200 rounded animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <SearchResults
+          products={processedProducts.slice(0, PRODUCTS_PER_PAGE * currentPage)}
+          isLoading={false}
+          pageContext={{
+            pageType: 'category',
+            pageName: currentCategory?.mainCategory || '',
+            category: category
+          }}
+        />
+        
+        {(hasMore && processedProducts.length > PRODUCTS_PER_PAGE * currentPage) && (
+          <div className="mt-8">
+            <Pagination
+              hasMore={hasMore}
+              onLoadMore={handleLoadMore}
+              isLoading={isLoadingMore || productsFetching}
+            />
+          </div>
+        )}
+      </>
+    );
+  };
 
   if (error || navError || !currentCategory) {
     return (
@@ -649,37 +709,7 @@ export default function CategoryPage() {
                 onRemoveFilter={handleRemoveFilter}
               />
               
-              {productsFetching ? (
-                <div className="flex justify-center">
-                  <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-                </div>
-              ) : productsError ? (
-                <div className="text-center text-red-600">
-                  Er is een fout opgetreden bij het laden van de producten.
-                </div>
-              ) : (
-                <>
-                  <SearchResults
-                    products={processedProducts}
-                    isLoading={false}
-                    pageContext={{
-                      pageType: 'category',
-                      pageName: currentCategory.mainCategory,
-                      category: category
-                    }}
-                  />
-                  
-                  {data?.products?.pageInfo?.hasNextPage && (
-                    <div className="mt-8">
-                      <Pagination
-                        currentPage={currentPage}
-                        totalPages={currentPage + (data.products.pageInfo.hasNextPage ? 1 : 0)}
-                        onPageChange={handlePageChange}
-                      />
-                    </div>
-                  )}
-                </>
-              )}
+              {renderProductGrid()}
             </main>
           </div>
         </div>

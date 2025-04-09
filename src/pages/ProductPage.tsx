@@ -20,6 +20,7 @@ import Breadcrumbs from '../components/Breadcrumbs';
 import { formatPrice } from '../utils/formatPrice';
 import { Helmet } from 'react-helmet-async';
 import { trackAddToCart, trackViewItem } from '../utils/analytics';
+import { useNavigation } from '../hooks/useNavigation';
 
 const PRODUCT_QUERY = gql`
   query GetProduct($handle: String!) {
@@ -32,6 +33,15 @@ const PRODUCT_QUERY = gql`
       productType
       tags
       vendor
+      collections(first: 10) {
+        edges {
+          node {
+            id
+            title
+            handle
+          }
+        }
+      }
       options {
         id
         name
@@ -148,6 +158,8 @@ export default function ProductPage() {
   const [showStickyBar, setShowStickyBar] = useState(false);
   const [showVariantModal, setShowVariantModal] = useState(false);
   const originalControlsRef = React.useRef<HTMLDivElement>(null);
+  const { categories } = useNavigation();
+  const [productCollections, setProductCollections] = useState<{title: string, handle: string}[]>([]);
 
   const [result] = useQuery({
     query: PRODUCT_QUERY,
@@ -155,6 +167,68 @@ export default function ProductPage() {
   });
 
   const { data, fetching, error } = result;
+
+  // Extract collections from product data
+  React.useEffect(() => {
+    if (data?.productByHandle?.collections?.edges) {
+      const collections = data.productByHandle.collections.edges.map(
+        (edge: any) => ({
+          title: edge.node.title,
+          handle: edge.node.handle
+        })
+      );
+      setProductCollections(collections);
+    }
+  }, [data]);
+
+  // Find matching category and subcategory based on collections
+  const findCategoryAndSubcategory = React.useCallback(() => {
+    if (!categories.length || !productCollections.length) return { category: null, subcategory: null };
+    
+    // Create a list of all subcategory handles for quick lookup
+    const subcategoryHandles = new Map();
+    categories.forEach(category => {
+      category.link.forEach((subcategory: any) => {
+        const handle = subcategory.fields.title.toLowerCase().replace(/\s+/g, '-');
+        subcategoryHandles.set(handle, {
+          category: {
+            title: category.mainCategory,
+            slug: category.slug
+          },
+          subcategory: {
+            title: subcategory.fields.title,
+            slug: subcategory.fields.slug
+          }
+        });
+      });
+    });
+    
+    // First, try to find a collection that matches a subcategory handle
+    for (const collection of productCollections) {
+      if (subcategoryHandles.has(collection.handle)) {
+        return subcategoryHandles.get(collection.handle);
+      }
+    }
+    
+    // If no match found, try to match by productType
+    if (data?.productByHandle?.productType) {
+      for (const category of categories) {
+        if (category.mainCategory.toLowerCase() === data.productByHandle.productType.toLowerCase()) {
+          return {
+            category: {
+              title: category.mainCategory,
+              slug: category.slug
+            },
+            subcategory: null
+          };
+        }
+      }
+    }
+    
+    return { category: null, subcategory: null };
+  }, [categories, productCollections, data]);
+
+  const { category, subcategory } = findCategoryAndSubcategory();
 
   // Redirect if the handle doesn't match the product's handle
   React.useEffect(() => {
@@ -469,6 +543,18 @@ export default function ProductPage() {
         <div className="mb-8">
           <Breadcrumbs
             items={[
+              ...(category ? [
+                {
+                  label: category.title,
+                  href: `/categorie/${category.slug}`
+                }
+              ] : []),
+              ...(subcategory ? [
+                {
+                  label: subcategory.title,
+                  href: `/categorie/${category.slug}/${subcategory.slug}`
+                }
+              ] : []),
               {
                 label: product.title
               }

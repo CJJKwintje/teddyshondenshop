@@ -12,7 +12,8 @@ import Pagination from '../components/Pagination';
 import ActiveFilterTags from '../components/ActiveFilterTags';
 import { getCategoryPageBySlug } from '../services/contentful';
 
-const PRODUCTS_PER_PAGE = 25;
+const PRODUCTS_PER_PAGE = 12;
+const PRODUCTS_PREFETCH_COUNT = 24;
 
 // Add type definitions
 interface CategoryMapping {
@@ -202,6 +203,10 @@ export default function ProductsPage() {
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [scrollPosition, setScrollPosition] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [totalProductsCount, setTotalProductsCount] = useState(0);
   
   // Fetch all products to get total count
   const [allProductsResult] = useQuery({
@@ -249,19 +254,37 @@ export default function ProductsPage() {
     query: FILTERED_PRODUCTS_QUERY,
     variables: {
       query: buildFilterQuery(),
-      first: PRODUCTS_PER_PAGE,
-      after: cursors[currentPage - 1] || null
+      first: selectedBrands.length > 0 || selectedPriceRanges.length > 0 ? 250 : PRODUCTS_PREFETCH_COUNT,
+      after: selectedBrands.length > 0 || selectedPriceRanges.length > 0 ? null : (cursors[currentPage - 1] || null)
     }
   });
 
-  // Store cursor for next page when we get results
+  // Store cursor and accumulate products when we get results
   useEffect(() => {
-    if (productsResult.data?.products?.pageInfo?.hasNextPage) {
-      setCursors(prev => ({
-        ...prev,
-        [currentPage]: productsResult.data.products.pageInfo.endCursor
-      }));
+    if (!productsResult.data?.products?.edges) return;
+  
+    const fetchedProducts = productsResult.data.products.edges;
+    
+    setCursors(prev => ({
+      ...prev,
+      [currentPage]: productsResult.data.products.pageInfo.endCursor
+    }));
+    
+    if (currentPage === 1) {
+      setAllProducts(fetchedProducts);
+      setHasMore(productsResult.data.products.pageInfo.hasNextPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      setAllProducts(prev => {
+        // When loading more, only add products that aren't already in the list
+        const existingIds = new Set(prev.map(p => p.node.id));
+        const newProducts = fetchedProducts.filter((p: { node: { id: string } }) => !existingIds.has(p.node.id));
+        return [...prev, ...newProducts];
+      });
     }
+    
+    setHasMore(productsResult.data.products.pageInfo.hasNextPage);
+    setIsLoadingMore(false);
   }, [productsResult.data, currentPage]);
 
   // Process available filters from initial query
@@ -288,10 +311,10 @@ export default function ProductsPage() {
   }, [filtersResult.data]);
 
   // Process products for display
-  const processProducts = useCallback(() => {
-    if (!productsResult.data?.products?.edges) return [];
+  const processedProducts = useCallback(() => {
+    if (!allProducts.length) return [];
 
-    return productsResult.data.products.edges.map(({ node }: any) => {
+    return allProducts.map(({ node }: any) => {
       const variant = node.variants.edges[0]?.node;
       const compareAtPrice = variant?.compareAtPrice
         ? parseFloat(variant.compareAtPrice.amount)
@@ -311,10 +334,10 @@ export default function ProductsPage() {
         }
       };
     });
-  }, [productsResult.data]);
+  }, [allProducts]);
 
   const { availableBrands, priceRanges } = processFilters();
-  const products = processProducts();
+  const products = processedProducts();
   const pageInfo = productsResult.data?.products?.pageInfo;
 
   const handlePageChange = useCallback((page: number) => {
@@ -327,8 +350,12 @@ export default function ProductsPage() {
   }, []);
 
   const handleFilterChange = (type: 'price' | 'brand' | 'type', value: string) => {
+    // Reset pagination and product states
     setCurrentPage(1);
     setCursors({});
+    setHasMore(true);
+    setAllProducts([]);
+    setIsLoadingMore(false);
 
     if (type === 'price') {
       setSelectedPriceRanges(prev =>
@@ -342,22 +369,34 @@ export default function ProductsPage() {
   };
 
   const handleCategoryChange = (category: string) => {
+    // Reset pagination and product states
     setCurrentPage(1);
     setCursors({});
+    setHasMore(true);
+    setAllProducts([]);
+    setIsLoadingMore(false);
     setSelectedCategory(prev => prev === category ? null : category);
   };
 
   const clearFilters = () => {
+    // Reset all states
     setSelectedPriceRanges([]);
     setSelectedBrands([]);
     setSelectedCategory(null);
     setCurrentPage(1);
     setCursors({});
+    setHasMore(true);
+    setAllProducts([]);
+    setIsLoadingMore(false);
   };
 
   const handleRemoveFilter = (type: 'price' | 'brand', value: string) => {
+    // Reset pagination state
     setCurrentPage(1);
     setCursors({});
+    setHasMore(true);
+    setAllProducts([]);
+    setIsLoadingMore(false);
 
     if (type === 'price') {
       setSelectedPriceRanges(prev =>
@@ -395,6 +434,62 @@ export default function ProductsPage() {
 
     fetchCategoryData();
   }, []);
+
+  // Handle loading more products
+  const handleLoadMore = useCallback(() => {
+    if (isLoadingMore || !hasMore) return;
+    
+    if (!productsResult.data?.products?.pageInfo?.hasNextPage) {
+      setHasMore(false);
+      return;
+    }
+    
+    setIsLoadingMore(true);
+    setCurrentPage(prev => prev + 1);
+  }, [isLoadingMore, hasMore, productsResult.data]);
+
+  // Product grid skeleton loading (when fetching products)
+  const renderProductGrid = () => {
+    if (productsResult.fetching) {
+      return (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="aspect-square bg-gray-200 animate-pulse" />
+              <div className="p-4">
+                <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse mb-2" />
+                <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse mb-4" />
+                <div className="h-8 bg-gray-200 rounded animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <SearchResults
+          products={products.slice(0, PRODUCTS_PER_PAGE * currentPage)}
+          isLoading={false}
+          pageContext={{
+            pageType: 'products',
+            pageName: 'Alle Producten'
+          }}
+        />
+        
+        {(hasMore && products.length > PRODUCTS_PER_PAGE * currentPage) && (
+          <div className="mt-8">
+            <Pagination
+              hasMore={hasMore}
+              onLoadMore={handleLoadMore}
+              isLoading={isLoadingMore || productsResult.fetching}
+            />
+          </div>
+        )}
+      </>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -539,21 +634,7 @@ export default function ProductsPage() {
               onRemoveFilter={handleRemoveFilter}
             />
             
-            <SearchResults
-              isLoading={productsResult.fetching && products.length === 0}
-              error={productsResult.error?.message}
-              products={products}
-            />
-
-            {pageInfo?.hasNextPage && (
-              <div className="mt-8">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={currentPage + (pageInfo.hasNextPage ? 1 : 0)}
-                  onPageChange={handlePageChange}
-                />
-              </div>
-            )}
+            {renderProductGrid()}
           </main>
         </div>
       </div>
