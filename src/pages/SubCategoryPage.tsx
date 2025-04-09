@@ -173,6 +173,9 @@ export default function SubCategoryPage() {
   const { categories } = useNavigation();
   const currentCategory = categories.find(cat => cat.slug === category) as NavigationCategory | undefined;
   const [searchParams, setSearchParams] = useSearchParams();
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [isLoadingWithDelay, setIsLoadingWithDelay] = useState(false);
+  const [filterTimeoutId, setFilterTimeoutId] = useState<NodeJS.Timeout | null>(null);
 
   // Fetch category page data from Contentful
   React.useEffect(() => {
@@ -385,13 +388,27 @@ export default function SubCategoryPage() {
     trackPaginationClick(page, { category, subcategory });
   }, [category, subcategory]);
 
+  // Handle filter changes
   const handleFilterChange = (type: 'price' | 'brand' | 'type', value: string) => {
-    // Reset pagination and product states
+    // Clear any existing timeout
+    if (filterTimeoutId) {
+      clearTimeout(filterTimeoutId);
+    }
+
+    // Reset states
     setCurrentPage(1);
     setCursors({});
     setHasMore(true);
     setAllProducts([]);
     setIsLoadingMore(false);
+    setIsFiltering(true);
+    setIsLoadingWithDelay(true);
+
+    // Set new timeout
+    const timeout = setTimeout(() => {
+      setIsLoadingWithDelay(false);
+    }, 1000);
+    setFilterTimeoutId(timeout);
 
     if (type === 'price') {
       setSelectedPriceRanges(prev =>
@@ -412,62 +429,6 @@ export default function SubCategoryPage() {
     }
   };
 
-  const clearFilters = () => {
-    // Reset all states
-    setSelectedPriceRanges([]);
-    setSelectedBrands([]);
-    setCurrentPage(1);
-    setCursors({});
-    setHasMore(true);
-    setAllProducts([]);
-    setIsLoadingMore(false);
-    
-    // Clear URL parameters
-    const params = new URLSearchParams();
-    setSearchParams(params);
-  };
-
-  const handleRemoveFilter = (type: 'price' | 'brand', value: string) => {
-    // Reset pagination state
-    setCurrentPage(1);
-    setCursors({});
-    setHasMore(true);
-    setAllProducts([]);
-    setIsLoadingMore(false);
-
-    if (type === 'price') {
-      const updated = selectedPriceRanges.filter(range => range !== value);
-      setSelectedPriceRanges(updated);
-    } else if (type === 'brand') {
-      const updated = selectedBrands.filter(brand => brand !== value);
-      setSelectedBrands(updated);
-    }
-  };
-
-  // Add logging for query results
-  React.useEffect(() => {
-    if (productsResult.data) {
-      const products = productsResult.data.collection?.products?.edges as ProductEdge[] || [];
-      
-      console.group('📊 Query Results');
-      console.log('Collection Handle:', getCollectionHandle());
-      console.log('Total Products:', products.length);
-      console.log('Current Page:', currentPage);
-      console.log('Products Per Page:', PRODUCTS_PER_PAGE);
-      
-      // Group products by type
-      const productsByType = products.reduce((acc: Record<string, number>, { node }) => {
-        const type = node.productType;
-        acc[type] = (acc[type] || 0) + 1;
-        return acc;
-      }, {});
-      
-      console.log('Product Type Distribution:', productsByType);
-      console.log('Raw Response:', productsResult.data);
-      console.groupEnd();
-    }
-  }, [productsResult.data, getCollectionHandle, currentPage]);
-
   // Handle loading more products
   const handleLoadMore = useCallback(() => {
     if (isLoadingMore || !hasMore) return;
@@ -478,8 +439,123 @@ export default function SubCategoryPage() {
     }
     
     setIsLoadingMore(true);
+    setIsLoadingWithDelay(true);
     setCurrentPage(prev => prev + 1);
+
+    // Set a minimum loading duration of 1 second
+    const timeout = setTimeout(() => {
+      setIsLoadingWithDelay(false);
+    }, 1000);
+    setFilterTimeoutId(timeout);
   }, [isLoadingMore, hasMore, productsResult.data]);
+
+  // Combined effect for managing loading states
+  useEffect(() => {
+    // Cleanup timeout on unmount
+    return () => {
+      if (filterTimeoutId) {
+        clearTimeout(filterTimeoutId);
+      }
+    };
+  }, [filterTimeoutId]);
+
+  // Reset loading states when products are fetched
+  useEffect(() => {
+    if (!productsResult.fetching) {
+      if (isFiltering) {
+        setIsFiltering(false);
+        // Ensure loading delay is reset if products are fetched before timeout
+        if (filterTimeoutId) {
+          clearTimeout(filterTimeoutId);
+          setIsLoadingWithDelay(false);
+        }
+      }
+      if (isLoadingMore) {
+        setIsLoadingMore(false);
+        // Don't reset isLoadingWithDelay here - let the timeout handle it
+      }
+    }
+  }, [productsResult.fetching, isFiltering, isLoadingMore, filterTimeoutId]);
+
+  const renderProductGrid = () => {
+    const isLoading = isLoadingWithDelay;
+    const currentProducts = processedProducts.slice(0, PRODUCTS_PER_PAGE * currentPage);
+    const previousProducts = processedProducts.slice(0, PRODUCTS_PER_PAGE * (currentPage - 1));
+
+    // If we're on the first page and have no products yet, show loading skeleton
+    if (currentPage === 1 && currentProducts.length === 0) {
+      return (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+          {[...Array(PRODUCTS_PER_PAGE)].map((_, i) => (
+            <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden h-[400px]">
+              <div className="aspect-square bg-gray-200 animate-pulse" />
+              <div className="p-4">
+                <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse mb-2" />
+                <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse mb-4" />
+                <div className="h-8 bg-gray-200 rounded animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-[800px]">
+        {/* Show all current products when not loading */}
+        {!isLoading && (
+          <SearchResults
+            products={currentProducts}
+            isLoading={false}
+            pageContext={{
+              pageType: 'subcategory',
+              pageName: pageData?.fields.title || '',
+              category: category,
+              subcategory: subcategory
+            }}
+          />
+        )}
+
+        {/* When loading, show previous products and skeleton for new ones */}
+        {isLoading && (
+          <>
+            <SearchResults
+              products={previousProducts}
+              isLoading={false}
+              pageContext={{
+                pageType: 'subcategory',
+                pageName: pageData?.fields.title || '',
+                category: category,
+                subcategory: subcategory
+              }}
+            />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mt-8">
+              {[...Array(PRODUCTS_PER_PAGE)].map((_, i) => (
+                <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden h-[400px]">
+                  <div className="aspect-square bg-gray-200 animate-pulse" />
+                  <div className="p-4">
+                    <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse mb-2" />
+                    <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse mb-4" />
+                    <div className="h-8 bg-gray-200 rounded animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        
+        {(hasMore && processedProducts.length > PRODUCTS_PER_PAGE * currentPage) && (
+          <div className="mt-8">
+            <Pagination
+              hasMore={hasMore}
+              onLoadMore={handleLoadMore}
+              isLoading={isLoading}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
 
   if (isLoading || productsResult.fetching) {
     return (
@@ -513,7 +589,16 @@ export default function SubCategoryPage() {
                 selectedBrands={selectedBrands}
                 selectedPriceRanges={selectedPriceRanges}
                 onFilterChange={handleFilterChange}
-                onClearFilters={clearFilters}
+                onClearFilters={() => {
+                  setSelectedPriceRanges([]);
+                  setSelectedBrands([]);
+                  setCurrentPage(1);
+                  setCursors({});
+                  setHasMore(true);
+                  setAllProducts([]);
+                  setIsLoadingMore(false);
+                  setSearchParams(new URLSearchParams());
+                }}
               />
             </aside>
 
@@ -532,22 +617,12 @@ export default function SubCategoryPage() {
               <ActiveFilterTags
                 selectedBrands={selectedBrands}
                 selectedPriceRanges={selectedPriceRanges}
-                onRemoveFilter={handleRemoveFilter}
+                onRemoveFilter={(type, value) => {
+                  handleFilterChange(type, value);
+                }}
               />
               
-              {/* Product Grid Skeleton */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-                {[...Array(8)].map((_, i) => (
-                  <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                    <div className="aspect-square bg-gray-200 animate-pulse" /> {/* Image skeleton */}
-                    <div className="p-4">
-                      <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse mb-2" /> {/* Title skeleton */}
-                      <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse mb-4" /> {/* Price skeleton */}
-                      <div className="h-8 bg-gray-200 rounded animate-pulse" /> {/* Button skeleton */}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {renderProductGrid()}
             </main>
           </div>
         </div>
@@ -560,7 +635,16 @@ export default function SubCategoryPage() {
           selectedBrands={selectedBrands}
           selectedPriceRanges={selectedPriceRanges}
           onFilterChange={handleFilterChange}
-          onClearFilters={clearFilters}
+          onClearFilters={() => {
+            setSelectedPriceRanges([]);
+            setSelectedBrands([]);
+            setCurrentPage(1);
+            setCursors({});
+            setHasMore(true);
+            setAllProducts([]);
+            setIsLoadingMore(false);
+            setSearchParams(new URLSearchParams());
+          }}
         />
 
         <BackToTop />
@@ -630,7 +714,16 @@ export default function SubCategoryPage() {
               selectedBrands={selectedBrands}
               selectedPriceRanges={selectedPriceRanges}
               onFilterChange={handleFilterChange}
-              onClearFilters={clearFilters}
+              onClearFilters={() => {
+                setSelectedPriceRanges([]);
+                setSelectedBrands([]);
+                setCurrentPage(1);
+                setCursors({});
+                setHasMore(true);
+                setAllProducts([]);
+                setIsLoadingMore(false);
+                setSearchParams(new URLSearchParams());
+              }}
             />
           </aside>
 
@@ -649,41 +742,12 @@ export default function SubCategoryPage() {
             <ActiveFilterTags
               selectedBrands={selectedBrands}
               selectedPriceRanges={selectedPriceRanges}
-              onRemoveFilter={handleRemoveFilter}
+              onRemoveFilter={(type, value) => {
+                handleFilterChange(type, value);
+              }}
             />
             
-            {productsResult.fetching ? (
-              <div className="flex justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-              </div>
-            ) : productsResult.error ? (
-              <div className="text-center text-red-600">
-                Er is een fout opgetreden bij het laden van de producten.
-              </div>
-            ) : (
-              <>
-                <SearchResults
-                  products={processedProducts.slice(0, PRODUCTS_PER_PAGE * currentPage)}
-                  isLoading={false}
-                  pageContext={{
-                    pageType: 'subcategory',
-                    pageName: pageData.fields.title,
-                    category: category,
-                    subcategory: subcategory
-                  }}
-                />
-                
-                {(hasMore && processedProducts.length > PRODUCTS_PER_PAGE * currentPage) && (
-                  <div className="mt-8">
-                    <Pagination
-                      hasMore={hasMore}
-                      onLoadMore={handleLoadMore}
-                      isLoading={isLoadingMore || productsResult.fetching}
-                    />
-                  </div>
-                )}
-              </>
-            )}
+            {renderProductGrid()}
 
             {/* Description Section */}
             {pageData.fields.seoDescription && (
@@ -708,7 +772,16 @@ export default function SubCategoryPage() {
         selectedBrands={selectedBrands}
         selectedPriceRanges={selectedPriceRanges}
         onFilterChange={handleFilterChange}
-        onClearFilters={clearFilters}
+        onClearFilters={() => {
+          setSelectedPriceRanges([]);
+          setSelectedBrands([]);
+          setCurrentPage(1);
+          setCursors({});
+          setHasMore(true);
+          setAllProducts([]);
+          setIsLoadingMore(false);
+          setSearchParams(new URLSearchParams());
+        }}
       />
 
       <BackToTop />

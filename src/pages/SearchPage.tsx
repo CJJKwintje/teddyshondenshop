@@ -107,14 +107,14 @@ export default function SearchPage() {
     const searchConditions = terms.map(term => {
       // For single words, search in title, productType, and tags
       if (!term.includes('-')) {
-        return `(title:*${term}* OR productType:*${term}* OR tag:*${term}*)`;
+        return `title:${term} OR productType:${term} OR tag:${term}`;
       }
       // For hyphenated terms or phrases, search more exactly
       return `(title:"${term}" OR productType:"${term}" OR tag:"${term}")`;
     });
     
     // Combine all conditions with AND to make search more specific
-    return searchConditions.join(' AND');
+    return searchConditions.join(' OR ');
   }, [searchQuery]);
 
   const [result] = useQuery({
@@ -237,6 +237,12 @@ export default function SearchPage() {
 
     setFilteredProducts(filtered);
     
+    if (!filtered.length && isFiltered) {
+      // Als er gefilterd wordt maar de lijst is leeg, probeer alle producten opnieuw op te bouwen
+      setAllProducts(result.data?.products?.edges || []);
+      return;
+    }
+
     // Set displayed products based on pagination
     if (isFiltered) {
       // In filtered mode, show paginated products initially

@@ -132,6 +132,8 @@ export default function CategoryPage() {
   const [cursors, setCursors] = useState<Record<number, string>>({});
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isLoadingWithDelay, setIsLoadingWithDelay] = useState(false);
+  const [filterTimeoutId, setFilterTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const [allProducts, setAllProducts] = useState<any[]>([]);
   
   // Filter state
@@ -140,6 +142,7 @@ export default function CategoryPage() {
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [availableBrands, setAvailableBrands] = useState<string[]>([]);
   const [priceRanges, setPriceRanges] = useState<number[]>([]);
+  const [isFiltering, setIsFiltering] = useState(false);
 
   // Initialize filters from URL parameters
   useEffect(() => {
@@ -328,18 +331,51 @@ export default function CategoryPage() {
       return;
     }
     
+    // Store current scroll position
+    setScrollPosition(window.scrollY);
+    
     setIsLoadingMore(true);
+    setIsLoadingWithDelay(true);
     setCurrentPage(prev => prev + 1);
+
+    // Set a minimum loading duration of 1 second
+    setTimeout(() => {
+      setIsLoadingWithDelay(false);
+    }, 1000);
   }, [isLoadingMore, hasMore, data]);
 
-  // Filter handlers
+  // Reset loading state and restore scroll position when products are fetched
+  useEffect(() => {
+    if (!productsFetching && isLoadingMore) {
+      setIsLoadingMore(false);
+      // Restore scroll position after products are rendered
+      requestAnimationFrame(() => {
+        window.scrollTo(0, scrollPosition);
+      });
+    }
+  }, [productsFetching, isLoadingMore, scrollPosition]);
+
+  // Handle filter changes
   const handleFilterChange = (type: 'price' | 'brand' | 'type', value: string) => {
-    // Reset pagination and product states
+    // Clear any existing timeout
+    if (filterTimeoutId) {
+      clearTimeout(filterTimeoutId);
+    }
+
+    // Reset states
     setCurrentPage(1);
     setCursors({});
     setHasMore(true);
     setAllProducts([]);
     setIsLoadingMore(false);
+    setIsFiltering(true);
+    setIsLoadingWithDelay(true);
+
+    // Set new timeout
+    const timeout = setTimeout(() => {
+      setIsLoadingWithDelay(false);
+    }, 1000);
+    setFilterTimeoutId(timeout);
 
     if (type === 'price') {
       setSelectedPriceRanges(prev =>
@@ -359,6 +395,27 @@ export default function CategoryPage() {
       trackFilterUse(type, value, { category });
     }
   };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (filterTimeoutId) {
+        clearTimeout(filterTimeoutId);
+      }
+    };
+  }, [filterTimeoutId]);
+
+  // Reset filtering state when products are fetched
+  useEffect(() => {
+    if (!productsFetching && isFiltering) {
+      setIsFiltering(false);
+      // Ensure loading delay is reset if products are fetched before timeout
+      if (filterTimeoutId) {
+        clearTimeout(filterTimeoutId);
+        setIsLoadingWithDelay(false);
+      }
+    }
+  }, [productsFetching, isFiltering, filterTimeoutId]);
 
   const clearFilters = () => {
     // Reset all states
@@ -430,77 +487,18 @@ export default function CategoryPage() {
     return queryString ? `${baseUrl}?${queryString}` : baseUrl;
   }, [selectedBrands, selectedPriceRanges]);
 
-  // Full page skeleton loading (initial page load)
-  if (isLoading || isNavLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Breadcrumbs Skeleton */}
-          <div className="mb-8">
-            <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
-          </div>
-
-          {/* Title Skeleton */}
-          <div className="mb-8">
-            <div className="h-8 w-64 bg-gray-200 rounded animate-pulse" />
-          </div>
-
-          <div className="flex flex-col lg:flex-row gap-8">
-            {/* Filters Skeleton - Desktop */}
-            <aside className="hidden lg:block lg:w-72 flex-shrink-0">
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                <div className="h-6 w-1/2 bg-gray-200 rounded animate-pulse mb-4" />
-                <div className="space-y-2">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="h-4 w-full bg-gray-200 rounded animate-pulse" />
-                  ))}
-                </div>
-              </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="flex-1">
-              {/* Mobile Filter Button Skeleton */}
-              <div className="flex items-center justify-end mb-6">
-                <div className="h-10 w-24 bg-gray-200 rounded animate-pulse" />
-              </div>
-
-              {/* Active Filters Skeleton */}
-              <div className="mb-6 flex gap-2">
-                {[...Array(2)].map((_, i) => (
-                  <div key={i} className="h-8 w-32 bg-gray-200 rounded animate-pulse" />
-                ))}
-              </div>
-              
-              {/* Product Grid Skeleton */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-                {[...Array(8)].map((_, i) => (
-                  <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                    <div className="aspect-square bg-gray-200 animate-pulse" />
-                    <div className="p-4">
-                      <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse mb-2" />
-                      <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse mb-4" />
-                      <div className="h-8 bg-gray-200 rounded animate-pulse" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </main>
-          </div>
-        </div>
-
-        <BackToTop />
-      </div>
-    );
-  }
-
   // Product grid skeleton loading (when fetching products)
   const renderProductGrid = () => {
-    if (productsFetching) {
+    const isLoading = isLoadingWithDelay;
+    const currentProducts = processedProducts.slice(0, PRODUCTS_PER_PAGE * currentPage);
+    const previousProducts = processedProducts.slice(0, PRODUCTS_PER_PAGE * (currentPage - 1));
+
+    // If we're on the first page and have no products yet, show loading skeleton
+    if (currentPage === 1 && currentProducts.length === 0) {
       return (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden">
+          {[...Array(PRODUCTS_PER_PAGE)].map((_, i) => (
+            <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden h-[400px]">
               <div className="aspect-square bg-gray-200 animate-pulse" />
               <div className="p-4">
                 <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse mb-2" />
@@ -514,27 +512,57 @@ export default function CategoryPage() {
     }
 
     return (
-      <>
-        <SearchResults
-          products={processedProducts.slice(0, PRODUCTS_PER_PAGE * currentPage)}
-          isLoading={false}
-          pageContext={{
-            pageType: 'category',
-            pageName: currentCategory?.mainCategory || '',
-            category: category
-          }}
-        />
+      <div className="min-h-[800px]">
+        {/* Show all current products when not loading */}
+        {!isLoading && (
+          <SearchResults
+            products={currentProducts}
+            isLoading={false}
+            pageContext={{
+              pageType: 'category',
+              pageName: currentCategory?.mainCategory || '',
+              category: category
+            }}
+          />
+        )}
+
+        {/* When loading, show previous products and skeleton for new ones */}
+        {isLoading && (
+          <>
+            <SearchResults
+              products={previousProducts}
+              isLoading={false}
+              pageContext={{
+                pageType: 'category',
+                pageName: currentCategory?.mainCategory || '',
+                category: category
+              }}
+            />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mt-8">
+              {[...Array(PRODUCTS_PER_PAGE)].map((_, i) => (
+                <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden h-[400px]">
+                  <div className="aspect-square bg-gray-200 animate-pulse" />
+                  <div className="p-4">
+                    <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse mb-2" />
+                    <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse mb-4" />
+                    <div className="h-8 bg-gray-200 rounded animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
         
         {(hasMore && processedProducts.length > PRODUCTS_PER_PAGE * currentPage) && (
           <div className="mt-8">
             <Pagination
               hasMore={hasMore}
               onLoadMore={handleLoadMore}
-              isLoading={isLoadingMore || productsFetching}
+              isLoading={isLoading}
             />
           </div>
         )}
-      </>
+      </div>
     );
   };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQuery } from 'urql';
 import { gql } from 'urql';
 import { SlidersHorizontal, Loader2, Dog, Bone, Cookie, MapPin, Moon, Shirt, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -192,6 +192,44 @@ const ALL_PRODUCTS_QUERY = gql`
   }
 `;
 
+const GET_COLLECTION_FILTERS_QUERY = gql`
+  query GetCollectionFilters($handle: String!) {
+    collection(handle: $handle) {
+      products(first: 250) {
+        edges {
+          node {
+            vendor
+            priceRange {
+              minVariantPrice {
+                amount
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const COLLECTION_PRODUCTS_QUERY = gql`
+  query GetCollectionProducts($handle: String!, $first: Int, $after: String) {
+    collection(handle: $handle) {
+      products(first: $first, after: $after) {
+        edges {
+          node {
+            ...ProductCard
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+  ${PRODUCT_CARD_FRAGMENT}
+`;
+
 export default function ProductsPage() {
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
@@ -207,94 +245,43 @@ export default function ProductsPage() {
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [totalProductsCount, setTotalProductsCount] = useState(0);
+  const [isLoadingWithDelay, setIsLoadingWithDelay] = useState(false);
+  const [filterTimeoutId, setFilterTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [availableBrands, setAvailableBrands] = useState<string[]>([]);
+  const [priceRanges, setPriceRanges] = useState<number[]>([]);
   
   // Fetch all products to get total count
   const [allProductsResult] = useQuery({
     query: ALL_PRODUCTS_QUERY
   });
 
+  // Get collection handle from category
+  const getCollectionHandle = useCallback(() => {
+    if (!selectedCategory) return '';
+    
+    // Use the category title as the collection handle
+    // Convert to lowercase and replace spaces with hyphens
+    return selectedCategory.toLowerCase().replace(/\s+/g, '-');
+  }, [selectedCategory]);
+
   // Fetch filters
   const [filtersResult] = useQuery({
-    query: GET_FILTERS_QUERY
+    query: GET_COLLECTION_FILTERS_QUERY,
+    variables: { 
+      handle: getCollectionHandle()
+    },
+    pause: !selectedCategory
   });
-
-  // Build query string based on selected filters
-  const buildFilterQuery = useCallback(() => {
-    const queries: string[] = [];
-    
-    // Add category filter
-    if (selectedCategory && CATEGORY_MAPPING[selectedCategory]) {
-      const categoryTypes = CATEGORY_MAPPING[selectedCategory].productTypes;
-      const productTypeQuery = categoryTypes
-        .map(type => `(product_type:${type})`)
-        .join(' OR ');
-      queries.push(`(${productTypeQuery})`);
-    }
-    
-    if (selectedBrands.length > 0) {
-      const brandQuery = selectedBrands
-        .map(brand => `(vendor:${brand})`)
-        .join(' OR ');
-      queries.push(`(${brandQuery})`);
-    }
-    
-    if (selectedPriceRanges.length > 0) {
-      const priceQueries = selectedPriceRanges.map(range => {
-        const [min, max] = range.split('-').map(parseFloat);
-        return `(variants.price:>=${min} AND variants.price:<=${max})`;
-      });
-      queries.push(`(${priceQueries.join(' OR ')})`);
-    }
-    
-    return queries.length > 0 ? queries.join(' AND ') : '';
-  }, [selectedBrands, selectedPriceRanges, selectedCategory]);
-
-  // Fetch products with pagination
-  const [productsResult] = useQuery({
-    query: FILTERED_PRODUCTS_QUERY,
-    variables: {
-      query: buildFilterQuery(),
-      first: selectedBrands.length > 0 || selectedPriceRanges.length > 0 ? 250 : PRODUCTS_PREFETCH_COUNT,
-      after: selectedBrands.length > 0 || selectedPriceRanges.length > 0 ? null : (cursors[currentPage - 1] || null)
-    }
-  });
-
-  // Store cursor and accumulate products when we get results
-  useEffect(() => {
-    if (!productsResult.data?.products?.edges) return;
-  
-    const fetchedProducts = productsResult.data.products.edges;
-    
-    setCursors(prev => ({
-      ...prev,
-      [currentPage]: productsResult.data.products.pageInfo.endCursor
-    }));
-    
-    if (currentPage === 1) {
-      setAllProducts(fetchedProducts);
-      setHasMore(productsResult.data.products.pageInfo.hasNextPage);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      setAllProducts(prev => {
-        // When loading more, only add products that aren't already in the list
-        const existingIds = new Set(prev.map(p => p.node.id));
-        const newProducts = fetchedProducts.filter((p: { node: { id: string } }) => !existingIds.has(p.node.id));
-        return [...prev, ...newProducts];
-      });
-    }
-    
-    setHasMore(productsResult.data.products.pageInfo.hasNextPage);
-    setIsLoadingMore(false);
-  }, [productsResult.data, currentPage]);
 
   // Process available filters from initial query
   const processFilters = useCallback(() => {
-    if (!filtersResult.data?.products?.edges) return {
+    if (!filtersResult.data?.collection?.products?.edges) return {
       availableBrands: [],
       priceRanges: []
     };
 
-    const products = filtersResult.data.products.edges;
+    const products = filtersResult.data.collection.products.edges;
     const brands = new Set<string>();
     const prices = new Set<number>();
 
@@ -310,11 +297,197 @@ export default function ProductsPage() {
     };
   }, [filtersResult.data]);
 
-  // Process products for display
-  const processedProducts = useCallback(() => {
+  // Build query string based on selected filters
+  const buildFilterQuery = useCallback(() => {
+    const queries: string[] = [];
+    
+    // Only apply price filters when no category is selected
+    if (selectedPriceRanges.length > 0) {
+      const priceQueries = selectedPriceRanges.map(range => {
+        const [min, max] = range.split('-').map(parseFloat);
+        return `(variants.price:>=${min} AND variants.price:<=${max})`;
+      });
+      queries.push(`(${priceQueries.join(' OR ')})`);
+    }
+    
+    return queries.length > 0 ? queries.join(' AND ') : '';
+  }, [selectedPriceRanges]);
+
+  // Handle category change
+  const handleCategoryChange = (category: string) => {
+    // Clear any existing timeout
+    if (filterTimeoutId) {
+      clearTimeout(filterTimeoutId);
+    }
+
+    // Reset states
+    setCurrentPage(1);
+    setCursors({});
+    setHasMore(true);
+    setAllProducts([]);
+    setIsLoadingMore(false);
+    setIsFiltering(true);
+    setIsLoadingWithDelay(true);
+    setSelectedBrands([]);
+    setSelectedPriceRanges([]);
+
+    // Set new timeout
+    const timeout = setTimeout(() => {
+      setIsLoadingWithDelay(false);
+    }, 1000);
+    setFilterTimeoutId(timeout);
+
+    // If clicking the same category, deselect it (show all products)
+    if (selectedCategory === category) {
+      setSelectedCategory(null);
+    } else {
+      setSelectedCategory(category);
+    }
+  };
+
+  // Handle filter change
+  const handleFilterChange = (type: 'price' | 'brand' | 'type', value: string) => {
+    // Clear any existing timeout
+    if (filterTimeoutId) {
+      clearTimeout(filterTimeoutId);
+    }
+
+    // Reset states
+    setCurrentPage(1);
+    setCursors({});
+    setHasMore(true);
+    setAllProducts([]);
+    setIsLoadingMore(false);
+    setIsFiltering(true);
+    setIsLoadingWithDelay(true);
+
+    // Set new timeout
+    const timeout = setTimeout(() => {
+      setIsLoadingWithDelay(false);
+    }, 1000);
+    setFilterTimeoutId(timeout);
+
+    if (type === 'price') {
+      setSelectedPriceRanges(prev =>
+        prev.includes(value) ? prev.filter(range => range !== value) : [value]
+      );
+    } else if (type === 'brand') {
+      setSelectedBrands(prev =>
+        prev.includes(value) ? prev.filter(brand => brand !== value) : [...prev, value]
+      );
+    }
+  };
+
+  // Handle load more
+  const handleLoadMore = useCallback(() => {
+    if (isLoadingMore || !hasMore) return;
+    
+    // Store current scroll position
+    const scrollPosition = window.scrollY;
+    
+    // Set loading states immediately
+    setIsLoadingMore(true);
+    setIsLoadingWithDelay(true);
+    
+    // Clear any existing timeout
+    if (filterTimeoutId) {
+      clearTimeout(filterTimeoutId);
+    }
+    
+    // Set new timeout for minimum loading duration
+    const timeout = setTimeout(() => {
+      setIsLoadingWithDelay(false);
+      
+      // Only restore scroll position if user hasn't scrolled during loading
+      if (Math.abs(window.scrollY - scrollPosition) < 10) {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, scrollPosition);
+        });
+      }
+    }, 1000);
+    
+    setFilterTimeoutId(timeout);
+    setCurrentPage(prev => prev + 1);
+  }, [isLoadingMore, hasMore, filterTimeoutId]);
+
+  // Fetch products with pagination
+  const [productsResult] = useQuery({
+    query: selectedCategory ? COLLECTION_PRODUCTS_QUERY : FILTERED_PRODUCTS_QUERY,
+    variables: selectedCategory ? {
+      handle: getCollectionHandle(),
+      first: selectedBrands.length > 0 || selectedPriceRanges.length > 0 ? 250 : PRODUCTS_PREFETCH_COUNT,
+      after: selectedBrands.length > 0 || selectedPriceRanges.length > 0 ? null : (cursors[currentPage - 1] || null)
+    } : {
+      query: buildFilterQuery(),
+      first: selectedPriceRanges.length > 0 ? 250 : PRODUCTS_PREFETCH_COUNT,
+      after: selectedPriceRanges.length > 0 ? null : (cursors[currentPage - 1] || null)
+    }
+  });
+
+  // Store cursor and accumulate products when we get results
+  useEffect(() => {
+    if (!productsResult.data) return;
+
+    const fetchedProducts = selectedCategory 
+      ? productsResult.data.collection?.products?.edges 
+      : productsResult.data.products?.edges;
+    
+    if (!fetchedProducts) return;
+
+    const pageInfo = selectedCategory 
+      ? productsResult.data.collection?.products?.pageInfo 
+      : productsResult.data.products?.pageInfo;
+
+    setCursors(prev => ({
+      ...prev,
+      [currentPage]: pageInfo?.endCursor
+    }));
+    
+    if (currentPage === 1) {
+      setAllProducts(fetchedProducts);
+      setHasMore(pageInfo?.hasNextPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      setAllProducts(prev => {
+        // When loading more, only add products that aren't already in the list
+        const existingIds = new Set(prev.map(p => p.node.id));
+        const newProducts = fetchedProducts.filter((p: { node: { id: string } }) => !existingIds.has(p.node.id));
+        return [...prev, ...newProducts];
+      });
+    }
+    
+    setHasMore(pageInfo?.hasNextPage);
+    setIsLoadingMore(false);
+    setIsFiltering(false);
+    setIsLoadingWithDelay(false);
+  }, [productsResult.data, currentPage, selectedCategory]);
+
+  // Process products with filters
+  const processedProducts = useMemo(() => {
     if (!allProducts.length) return [];
 
-    return allProducts.map(({ node }: any) => {
+    // Apply filters to the products
+    let filteredProducts = allProducts;
+    
+    // Only apply brand filter when a category is selected
+    if (selectedCategory && selectedBrands.length > 0) {
+      filteredProducts = filteredProducts.filter(({ node }: any) => 
+        selectedBrands.includes(node.vendor)
+      );
+    }
+    
+    // Always apply price filters
+    if (selectedPriceRanges.length > 0) {
+      filteredProducts = filteredProducts.filter(({ node }: any) => {
+        const price = parseFloat(node.priceRange.minVariantPrice.amount);
+        return selectedPriceRanges.some(range => {
+          const [min, max] = range.split('-').map(parseFloat);
+          return price >= min && price <= max;
+        });
+      });
+    }
+
+    return filteredProducts.map(({ node }: any) => {
       const variant = node.variants.edges[0]?.node;
       const compareAtPrice = variant?.compareAtPrice
         ? parseFloat(variant.compareAtPrice.amount)
@@ -334,11 +507,10 @@ export default function ProductsPage() {
         }
       };
     });
-  }, [allProducts]);
+  }, [allProducts, selectedBrands, selectedPriceRanges, selectedCategory]);
 
-  const { availableBrands, priceRanges } = processFilters();
-  const products = processedProducts();
-  const pageInfo = productsResult.data?.products?.pageInfo;
+  const products = processedProducts;
+  const pageInfo = productsResult.data?.collection?.products?.pageInfo;
 
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
@@ -348,35 +520,6 @@ export default function ProductsPage() {
       behavior: 'smooth'
     });
   }, []);
-
-  const handleFilterChange = (type: 'price' | 'brand' | 'type', value: string) => {
-    // Reset pagination and product states
-    setCurrentPage(1);
-    setCursors({});
-    setHasMore(true);
-    setAllProducts([]);
-    setIsLoadingMore(false);
-
-    if (type === 'price') {
-      setSelectedPriceRanges(prev =>
-        prev.includes(value) ? prev.filter(range => range !== value) : [value]
-      );
-    } else if (type === 'brand') {
-      setSelectedBrands(prev =>
-        prev.includes(value) ? prev.filter(brand => brand !== value) : [...prev, value]
-      );
-    }
-  };
-
-  const handleCategoryChange = (category: string) => {
-    // Reset pagination and product states
-    setCurrentPage(1);
-    setCursors({});
-    setHasMore(true);
-    setAllProducts([]);
-    setIsLoadingMore(false);
-    setSelectedCategory(prev => prev === category ? null : category);
-  };
 
   const clearFilters = () => {
     // Reset all states
@@ -435,59 +578,73 @@ export default function ProductsPage() {
     fetchCategoryData();
   }, []);
 
-  // Handle loading more products
-  const handleLoadMore = useCallback(() => {
-    if (isLoadingMore || !hasMore) return;
-    
-    if (!productsResult.data?.products?.pageInfo?.hasNextPage) {
-      setHasMore(false);
-      return;
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (filterTimeoutId) {
+        clearTimeout(filterTimeoutId);
+      }
+    };
+  }, [filterTimeoutId]);
+
+  // Update available filters when filter data changes
+  useEffect(() => {
+    if (!selectedCategory) {
+      // When no category is selected, only show price ranges
+      setAvailableBrands([]);
+      setPriceRanges([0, 25, 50, 75, 100, 150, 200, 300, 500]); // Default price ranges
+    } else {
+      const { availableBrands: brands, priceRanges: prices } = processFilters();
+      setAvailableBrands(brands);
+      setPriceRanges(prices);
     }
-    
-    setIsLoadingMore(true);
-    setCurrentPage(prev => prev + 1);
-  }, [isLoadingMore, hasMore, productsResult.data]);
+  }, [processFilters, selectedCategory]);
 
   // Product grid skeleton loading (when fetching products)
   const renderProductGrid = () => {
-    if (productsResult.fetching) {
-      return (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <div className="aspect-square bg-gray-200 animate-pulse" />
-              <div className="p-4">
-                <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse mb-2" />
-                <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse mb-4" />
-                <div className="h-8 bg-gray-200 rounded animate-pulse" />
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
+    const isLoading = isLoadingWithDelay || isLoadingMore;
+    const currentProducts = products.slice(0, PRODUCTS_PER_PAGE * currentPage);
 
     return (
-      <>
+      <div className="min-h-[800px]">
+        {/* Show current products */}
         <SearchResults
-          products={products.slice(0, PRODUCTS_PER_PAGE * currentPage)}
+          products={currentProducts}
           isLoading={false}
           pageContext={{
-            pageType: 'products',
-            pageName: 'Alle Producten'
+            pageType: 'category',
+            pageName: selectedCategory || 'Alle Producten',
+            category: selectedCategory || ''
           }}
         />
+
+        {/* Show skeleton loader for next batch when loading */}
+        {isLoading && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mt-8">
+            {[...Array(PRODUCTS_PER_PAGE)].map((_, i) => (
+              <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden h-[400px]">
+                <div className="aspect-square bg-gray-200 animate-pulse" />
+                <div className="p-4">
+                  <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse mb-2" />
+                  <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse mb-4" />
+                  <div className="h-8 bg-gray-200 rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         
+        {/* Show "Load More" button if we have more products */}
         {(hasMore && products.length > PRODUCTS_PER_PAGE * currentPage) && (
           <div className="mt-8">
             <Pagination
               hasMore={hasMore}
               onLoadMore={handleLoadMore}
-              isLoading={isLoadingMore || productsResult.fetching}
+              isLoading={isLoading}
             />
           </div>
         )}
-      </>
+      </div>
     );
   };
 
