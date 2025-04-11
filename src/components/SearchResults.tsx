@@ -101,19 +101,6 @@ export default function SearchResults({
           );
         })}
       </div>
-
-      {products.length < (filteredProducts?.length ?? 0) && (
-        <div
-          ref={loadMoreRef}
-          className="flex justify-center items-center py-8"
-        >
-          {isFetching ? (
-            <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-          ) : (
-            <div className="h-8" />
-          )}
-        </div>
-      )}
     </>
   );
 }

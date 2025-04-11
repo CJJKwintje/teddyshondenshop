@@ -1,6 +1,7 @@
 import { gql } from 'urql';
 import { shopifyClient } from '../services/shopify.js';
 import { stripHtml } from 'string-strip-html';
+import { CATEGORY_MAPPING } from '../pages/ProductsPage';
 
 const PRODUCTS_PER_PAGE = 250;
 
@@ -10,6 +11,22 @@ interface ShopifyProduct {
   description: string;
   handle: string;
   vendor: string;
+  collections: {
+    edges: Array<{
+      node: {
+        id: string;
+        title: string;
+        handle: string;
+        metafields(first: number, namespace: string, key: string): {
+          edges: Array<{
+            node: {
+              value: string;
+            };
+          }>;
+        };
+      };
+    }>;
+  };
   images: {
     edges: Array<{
       node: {
@@ -67,6 +84,18 @@ const PRODUCTS_QUERY = gql`
           description
           handle
           vendor
+          collections(first: 10) {
+            edges {
+              node {
+                id
+                title
+                handle
+                metafield(namespace: "custom", key: "parent_collection") {
+                  value
+                }
+              }
+            }
+          }
           images(first: 10) {
             edges {
               node {
@@ -125,12 +154,19 @@ interface ProductFeedItem {
   gtin: string;
   condition: 'new' | 'refurbished' | 'used';
   item_group_id: string;
+  product_type: string;
+  custom_label_0?: string;
   size?: string;
   color?: string;
   material?: string;
   pattern?: string;
   gender?: string;
   age_group?: string;
+}
+
+interface CategoryMapping {
+  label: string;
+  productTypes: string[];
 }
 
 // Helper function to delay execution with exponential backoff
@@ -214,6 +250,50 @@ async function fetchAllProducts(): Promise<any[]> {
   return allProducts;
 }
 
+// Helper function to determine the category and subcategory
+function getCategoryAndSubcategory(collections: any[]): { category: string; subcategory: string | null } {
+  // First, get all collection titles
+  const collectionTitles = collections.map(c => c.node.title);
+  
+  // Find the main category by checking product types against CATEGORY_MAPPING
+  let mainCategory = '';
+  let subcategory = null;
+
+  // First try to find a subcategory (product type)
+  for (const [category, mapping] of Object.entries(CATEGORY_MAPPING)) {
+    const categoryMapping = mapping as CategoryMapping;
+    const matchingProductType = collectionTitles.find(title => 
+      categoryMapping.productTypes.includes(title.toUpperCase())
+    );
+    
+    if (matchingProductType) {
+      mainCategory = category;
+      subcategory = matchingProductType;
+      break;
+    }
+  }
+
+  // If no subcategory found, try to match the collection title directly to a main category
+  if (!mainCategory) {
+    for (const [category, mapping] of Object.entries(CATEGORY_MAPPING)) {
+      if (collectionTitles.includes(category)) {
+        mainCategory = category;
+        break;
+      }
+    }
+  }
+
+  // If still no category found, use "Overige" as default category
+  if (!mainCategory) {
+    mainCategory = "Overige";
+  }
+
+  return {
+    category: mainCategory,
+    subcategory: subcategory
+  };
+}
+
 export async function generateMerchantFeed(): Promise<ProductFeedItem[]> {
   try {
     const products = await fetchAllProducts();
@@ -225,6 +305,9 @@ export async function generateMerchantFeed(): Promise<ProductFeedItem[]> {
       const productImages = node.images.edges.map((edge: any) => edge.node.originalSrc);
       const mainImage = productImages[0] || '';
       const additionalImages = productImages.slice(1);
+      
+      // Get category and subcategory
+      const { category, subcategory } = getCategoryAndSubcategory(node.collections.edges);
       
       // Process each variant of the product
       return node.variants.edges.map(({ node: variant }: any) => {
@@ -283,6 +366,8 @@ export async function generateMerchantFeed(): Promise<ProductFeedItem[]> {
           gtin,
           condition: 'new',
           item_group_id: productId,
+          product_type: category,
+          custom_label_0: subcategory || undefined,
           ...variantOptions
         };
       });
@@ -317,6 +402,8 @@ export function convertToXML(products: ProductFeedItem[]): string {
       product.gtin ? `    <g:gtin>${product.gtin}</g:gtin>` : '',
       `    <g:condition>${product.condition}</g:condition>`,
       `    <g:item_group_id>${product.item_group_id}</g:item_group_id>`,
+      product.product_type ? `    <g:product_type>${escapeXml(product.product_type)}</g:product_type>` : '',
+      product.custom_label_0 ? `    <g:custom_label_0>${escapeXml(product.custom_label_0)}</g:custom_label_0>` : '',
       product.size ? `    <g:size>${escapeXml(product.size)}</g:size>` : '',
       product.color ? `    <g:color>${escapeXml(product.color)}</g:color>` : '',
       product.material ? `    <g:material>${escapeXml(product.material)}</g:material>` : '',

@@ -27,27 +27,7 @@ export default function SearchFilters({
   onFilterChange,
   onClearFilters,
 }: FilterProps) {
-  // Get current price from selectedPriceRanges
-  const getCurrentPrice = () => {
-    if (selectedPriceRanges.length === 0) return 100;
-    const [min, max] = selectedPriceRanges[0].split('-').map(Number);
-    return max;
-  };
-
   const [showAllBrands, setShowAllBrands] = useState(false);
-  const [currentPrice, setCurrentPrice] = useState(getCurrentPrice());
-
-  // Update currentPrice when selectedPriceRanges changes
-  useEffect(() => {
-    setCurrentPrice(getCurrentPrice());
-  }, [selectedPriceRanges]);
-
-  // Handle slider change
-  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value);
-    setCurrentPrice(value);
-    onFilterChange('price', '0-' + value);
-  };
 
   const hasActiveFilters = selectedPriceRanges.length > 0 || 
                           selectedBrands.length > 0;
@@ -55,6 +35,15 @@ export default function SearchFilters({
   // Get visible brands based on showAllBrands state
   const visibleBrands = showAllBrands ? availableBrands : availableBrands.slice(0, 5);
   const hasMoreBrands = availableBrands.length > 5;
+
+  // Predefined price ranges
+  const priceRanges = [
+    { label: 'Tot €25', value: '0-25' },
+    { label: '€25 - €50', value: '25-50' },
+    { label: '€50 - €75', value: '50-75' },
+    { label: '€75 - €100', value: '75-100' },
+    { label: 'Meer dan €100', value: '100-1000' }
+  ];
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -85,7 +74,8 @@ export default function SearchFilters({
                     type="checkbox"
                     checked={selectedBrands.includes(brand)}
                     onChange={() => onFilterChange('brand', brand)}
-                    className="w-4 h-4 text-[#63D7B2] border-gray-300 rounded focus:ring-[#63D7B2]"
+                    className="w-4 h-4 border-gray-300 text-[#63D7B2] focus:ring-[#63D7B2] focus:ring-offset-0 checked:bg-[#63D7B2] checked:border-[#63D7B2] accent-[#63D7B2] border-2"
+                    style={{ accentColor: '#63D7B2', borderColor: '#D1FAE5' }}
                   />
                   <span className="ml-3 text-sm text-gray-600 group-hover:text-gray-900">
                     {formatDisplayText(brand)}
@@ -96,7 +86,7 @@ export default function SearchFilters({
               {hasMoreBrands && (
                 <button
                   onClick={() => setShowAllBrands(!showAllBrands)}
-                  className="flex items-center text-sm text-blue-600 hover:text-blue-800 mt-2 group"
+                  className="flex items-center text-sm text-[#63D7B2] hover:text-[#4CAF8F] mt-2 group"
                 >
                   <span>{showAllBrands ? 'Minder tonen' : 'Meer tonen'}</span>
                   <svg
@@ -122,28 +112,26 @@ export default function SearchFilters({
 
         {/* Price Filter */}
         <div>
-          <h3 className="text-sm font-medium text-gray-900 mb-4">Maximale prijs</h3>
-          <div className="space-y-4">
-            <div className="flex justify-end items-center">
-              <span className="text-sm font-medium text-gray-900">€{currentPrice}</span>
-            </div>
-            
-            {/* Price Slider */}
-            <label htmlFor="priceRange" className="sr-only">Maximale prijs</label>
-            <input
-              id="priceRange"
-              type="range"
-              min={0}
-              max={100}
-              value={currentPrice}
-              onChange={handleSliderChange}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#63D7B2]"
-            />
-            
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>€0</span>
-              <span>€100</span>
-            </div>
+          <h3 className="text-sm font-medium text-gray-900 mb-4">Prijs</h3>
+          <div className="space-y-3">
+            {priceRanges.map((range) => (
+              <label
+                key={range.value}
+                className="flex items-center cursor-pointer group"
+              >
+                <input
+                  type="radio"
+                  name="price-range"
+                  checked={selectedPriceRanges.includes(range.value)}
+                  onChange={() => onFilterChange('price', range.value)}
+                  className="w-4 h-4 border-gray-300 text-[#63D7B2] focus:ring-[#63D7B2] focus:ring-offset-0 checked:bg-[#63D7B2] checked:border-[#63D7B2] accent-[#63D7B2] border-2"
+                  style={{ accentColor: '#63D7B2', borderColor: '#D1FAE5' }}
+                />
+                <span className="ml-3 text-sm text-gray-600 group-hover:text-gray-900">
+                  {range.label}
+                </span>
+              </label>
+            ))}
           </div>
         </div>
       </div>

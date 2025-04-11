@@ -162,7 +162,7 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen }: NavbarProps) {
                     setShowSuggestions(true);
                   }}
                   placeholder="Zoek producten..."
-                  className="w-full border rounded-full px-4 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 ease-in-out"
+                  className="w-full border rounded-full px-4 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#63D7B2] transition-all duration-300 ease-in-out"
                 />
                 <button
                   type="button"
