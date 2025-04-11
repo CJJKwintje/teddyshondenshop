@@ -14,42 +14,45 @@ import { subscribeToNewsletter } from '../services/shopify';
 import BannerSlider from '../components/BannerSlider';
 
 const PRODUCTS_QUERY = gql`
-  query GetProducts {
-    products(first: 8, sortKey: BEST_SELLING) {
-      edges {
-        node {
-          id
-          handle
-          title
-          productType
-          images(first: 1) {
-            edges {
-              node {
-                originalSrc
-                altText
+  query GetProducts($collectionId: ID!) {
+    collection(id: $collectionId) {
+      handle
+      products(first: 6) {
+        edges {
+          node {
+            id
+            handle
+            title
+            productType
+            images(first: 1) {
+              edges {
+                node {
+                  originalSrc
+                  altText
+                }
               }
             }
-          }
-          variants(first: 250) {
-            edges {
-              node {
-                id
-                price {
-                  amount
-                  currencyCode
+            variants(first: 250) {
+              edges {
+                node {
+                  id
+                  price {
+                    amount
+                    currencyCode
+                  }
+                  compareAtPrice {
+                    amount
+                    currencyCode
+                  }
+                  quantityAvailable
                 }
-                compareAtPrice {
-                  amount
-                  currencyCode
-                }
-                quantityAvailable
               }
             }
-          }
-          priceRange {
-            minVariantPrice {
-              amount
-              currencyCode
+            priceRange {
+              minVariantPrice {
+                amount
+                currencyCode
+              }
             }
           }
         }
@@ -140,7 +143,12 @@ const BannerSkeleton = ({ isSmall = false }: { isSmall?: boolean }) => (
 );
 
 const HomePage: React.FC = () => {
-  const [result] = useQuery({ query: PRODUCTS_QUERY });
+  const [result] = useQuery({ 
+    query: PRODUCTS_QUERY,
+    variables: {
+      collectionId: "gid://shopify/Collection/646804570446"
+    }
+  });
   const { data, fetching, error } = result;
   const [banners, setBanners] = useState<HomepageBanner[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -181,9 +189,9 @@ const HomePage: React.FC = () => {
   }, []);
 
   const bestSellingProducts = useMemo(() => {
-    if (!data?.products?.edges) return [];
-    return data.products.edges.map(({ node }: any) => node);
-  }, [data?.products?.edges]);
+    if (!data?.collection?.products?.edges) return [];
+    return data.collection.products.edges.map(({ node }: any) => node);
+  }, [data?.collection?.products?.edges]);
 
   const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -292,25 +300,14 @@ const HomePage: React.FC = () => {
           )}
         </section>
 
-        {/* Categories Grid */}
-        <section className="mb-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Ontdek onze categorieën</h2>
-          <CategoryGrid />
-        </section>
-
-        {/* Brand Logos */}
-        {!brandsLoading && brands.length > 0 && (
-          <BrandLogos brands={brands} />
-        )}
-
         {/* Featured Products */}
         <section className="mb-12">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-6">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-              Het beste assortiment voor jouw hond
+              Is jouw hond klaar voor het mooie weer?
             </h2>
             <Link
-              to="/producten"
+              to={`/search?collection=646804570446`}
               className="text-[#63D7B2] hover:text-[#47C09A] font-medium text-sm md:text-base"
             >
               Bekijk alles →
@@ -326,7 +323,7 @@ const HomePage: React.FC = () => {
               Er is een fout opgetreden bij het laden van de producten.
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
               {bestSellingProducts.map((product: any) => {
                 const productId = product.id.split('/').pop();
                 const variants = product.variants.edges;
@@ -360,6 +357,17 @@ const HomePage: React.FC = () => {
             </div>
           )}
         </section>
+
+        {/* Categories Grid */}
+        <section className="mb-12">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Ontdek onze categorieën</h2>
+          <CategoryGrid />
+        </section>
+
+        {/* Brand Logos */}
+        {!brandsLoading && brands.length > 0 && (
+          <BrandLogos brands={brands} />
+        )}
 
         {/* Newsletter Signup */}
         <section className="bg-[#47C09A] rounded-2xl p-8 md:p-12 mt-16 mb-8">

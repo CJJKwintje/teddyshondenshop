@@ -66,10 +66,65 @@ const SEARCH_PRODUCTS_QUERY = gql`
   }
 `;
 
+const COLLECTION_PRODUCTS_QUERY = gql`
+  query GetCollectionProducts($collectionId: ID!, $first: Int, $after: String) {
+    collection(id: $collectionId) {
+      title
+      products(first: $first, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        edges {
+          node {
+            id
+            handle
+            title
+            productType
+            tags
+            vendor
+            variants(first: 250) {
+              edges {
+                node {
+                  id
+                  price {
+                    amount
+                    currencyCode
+                  }
+                  compareAtPrice {
+                    amount
+                    currencyCode
+                  }
+                  quantityAvailable
+                }
+              }
+            }
+            images(first: 1) {
+              edges {
+                node {
+                  originalSrc
+                  altText
+                }
+              }
+            }
+            priceRange {
+              minVariantPrice {
+                amount
+                currencyCode
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
 export default function SearchPage() {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const searchQuery = params.get('query') || '';
+  const collectionId = params.get('collection');
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -94,6 +149,11 @@ export default function SearchPage() {
   const isFiltered = selectedPriceRanges.length > 0 || selectedTags.length > 0 || selectedBrands.length > 0;
 
   const buildQuery = useCallback(() => {
+    // If we have a collection ID, search within that collection
+    if (collectionId) {
+      return `collection_id:${collectionId}`;
+    }
+
     const terms = searchQuery.toLowerCase().split(' ').filter(Boolean);
     const knownBrands = ['renske', 'carnibest', 'farmfood', 'prins', 'nordic'];
     
@@ -115,11 +175,15 @@ export default function SearchPage() {
     
     // Combine all conditions with AND to make search more specific
     return searchConditions.join(' OR ');
-  }, [searchQuery]);
+  }, [searchQuery, collectionId]);
 
   const [result] = useQuery({
-    query: SEARCH_PRODUCTS_QUERY,
-    variables: { 
+    query: collectionId ? COLLECTION_PRODUCTS_QUERY : SEARCH_PRODUCTS_QUERY,
+    variables: collectionId ? {
+      collectionId: `gid://shopify/Collection/${collectionId}`,
+      first: isFiltered ? 250 : PRODUCTS_PREFETCH_COUNT,
+      after: isFiltered ? null : (cursors[currentPage - 1] || null)
+    } : {
       query: buildQuery(),
       first: isFiltered ? 250 : PRODUCTS_PREFETCH_COUNT,
       after: isFiltered ? null : (cursors[currentPage - 1] || null)
@@ -138,14 +202,22 @@ export default function SearchPage() {
 
   // Store cursor and accumulate products when we get results
   useEffect(() => {
-    if (!result.data?.products?.edges) return;
+    if (!result.data) return;
   
-    const fetchedProducts = result.data.products.edges;
+    const fetchedProducts = collectionId 
+      ? result.data.collection?.products?.edges 
+      : result.data.products?.edges;
+    
+    if (!fetchedProducts) return;
+
+    const pageInfo = collectionId 
+      ? result.data.collection?.products?.pageInfo 
+      : result.data.products?.pageInfo;
     
     // Store cursor for pagination
     setCursors(prev => ({
       ...prev,
-      [currentPage]: result.data.products.pageInfo.endCursor
+      [currentPage]: pageInfo?.endCursor
     }));
     
     // Handle product accumulation based on whether we're in filtered mode
@@ -156,7 +228,7 @@ export default function SearchPage() {
       // In unfiltered mode, we accumulate products
       if (currentPage === 1) {
         setAllProducts(fetchedProducts);
-        setHasMore(result.data.products.pageInfo.hasNextPage);
+        setHasMore(pageInfo?.hasNextPage);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         setAllProducts(prev => {
@@ -167,11 +239,11 @@ export default function SearchPage() {
         });
       }
       
-      setHasMore(result.data.products.pageInfo.hasNextPage);
+      setHasMore(pageInfo?.hasNextPage);
     }
     
     setIsLoadingMore(false);
-  }, [result.data, currentPage, isFiltered]);
+  }, [result.data, currentPage, isFiltered, collectionId]);
 
   // Process products and apply filters
   useEffect(() => {
@@ -407,7 +479,7 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <SEO
-        title={`Zoekresultaten voor "${searchQuery}"`}
+        title={collectionId ? result.data?.collection?.title || "Collectie" : `Zoekresultaten voor "${searchQuery}"`}
         description={getMetaDescription()}
         canonical={canonicalUrl}
         type="website"
@@ -418,7 +490,10 @@ export default function SearchPage() {
         <div className="flex items-center gap-2 mb-8">
           <Search className="w-6 h-6 text-gray-400" />
           <h1 className="text-2xl font-bold text-gray-900">
-            Zoekresultaten voor "{searchQuery}"
+            {collectionId 
+              ? (result.data?.collection?.title ? `${result.data.collection.title}` : "Collectie")
+              : `Zoekresultaten voor "${searchQuery}"`
+            }
           </h1>
         </div>
 

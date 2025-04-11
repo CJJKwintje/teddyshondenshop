@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
-import { Trash2, MinusCircle, PlusCircle, ArrowLeft, AlertCircle, Wifi, RefreshCcw, Plus, Minus, Truck } from 'lucide-react';
+import { Trash2, MinusCircle, PlusCircle, ArrowLeft, AlertCircle, Wifi, RefreshCcw, Plus, Minus, Truck, Timer, MessageCircleHeart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { useQuery } from 'urql';
@@ -19,7 +19,7 @@ const CartPage: React.FC = () => {
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingCost = subtotal >= 59 ? 0 : 6.95;
   const total = subtotal + shippingCost;
-  const MINIMUM_ORDER_AMOUNT = 15;
+  const MINIMUM_ORDER_AMOUNT = 10;
   const isBelowMinimum = subtotal < MINIMUM_ORDER_AMOUNT;
   const remainingAmount = MINIMUM_ORDER_AMOUNT - subtotal;
   const FREE_SHIPPING_THRESHOLD = 59;
@@ -213,10 +213,10 @@ const CartPage: React.FC = () => {
         noindex={true}
       />
       
-      <div className="flex items-center mb-8">
+      <div className="flex items-center mb-4">
         <Link
           to="/"
-          className="mb-8 text-gray-600 hover:text-gray-900 flex items-center gap-2 group"
+          className="text-gray-600 hover:text-gray-900 flex items-center gap-2 group"
         >
           <ArrowLeft className="mr-2" size={20} />
           Verder winkelen
@@ -226,7 +226,7 @@ const CartPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
           {/* Free Shipping Progress Bar */}
-          <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
+          <div className="bg-white p-4 rounded-lg shadow-sm mb-8">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Truck className="h-5 w-5 text-primary" />
@@ -247,11 +247,11 @@ const CartPage: React.FC = () => {
             </div>
             {progressPercentage < 100 ? (
               <p className="text-sm text-gray-600 mt-2">
-                Voeg nog {formatPrice(FREE_SHIPPING_THRESHOLD - subtotal)} toe aan je winkelwagen voor gratis verzending
+                Voeg nog {formatPrice(FREE_SHIPPING_THRESHOLD - subtotal)} toe voor gratis verzending
               </p>
             ) : (
               <p className="text-sm text-green-600 mt-2">
-                Je hebt gratis verzending bereikt! 🎉
+                Je hebt gratis verzending! 🎉
               </p>
             )}
           </div>
@@ -326,7 +326,7 @@ const CartPage: React.FC = () => {
           {shippingCost > 0 && (
             <div className="mt-12">
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-xl font-bold">Nog een paar lekkere snacks erbij en je bespaart €6,95 verzendkosten!</h2>
+                <h2 className="text-xl font-bold">Voeg nog iets lekkers toe en ontvang GRATIS verzending!</h2>
                 <button 
                   onClick={getNextPage}
                   className="p-2 rounded-full hover:bg-gray-100 transition-colors group"
@@ -434,6 +434,42 @@ const CartPage: React.FC = () => {
               </div>
             </div>
             
+            <div className="space-y-4 mt-6">
+              <div className="flex items-center gap-4">
+                <div className="flex-shrink-0">
+                  <div className="p-2 bg-[#D9FFF3] rounded-lg">
+                    <Truck className="w-5 h-5 text-[#47C09A]" />
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900">Gratis Verzending</h4>
+                  <p className="text-sm text-gray-500">Gratis verzending vanaf €59</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex-shrink-0">
+                  <div className="p-2 bg-[#D9FFF3] rounded-lg">
+                    <Timer className="w-5 h-5 text-[#47C09A]" />
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900">Snelle bezorging</h4>
+                  <p className="text-sm text-gray-500">Op werkdagen voor 17:30 besteld, dezelfde dag verzonden</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex-shrink-0">
+                  <div className="p-2 bg-[#D9FFF3] rounded-lg">
+                    <MessageCircleHeart className="w-5 h-5 text-[#47C09A]" />
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900">Vragen? Wij helpen graag!!</h4>
+                  <p className="text-sm text-gray-500">Makkelijk en snel contact via e-mail of chat</p>
+                </div>
+              </div>
+            </div>
+            
             {error && (
               <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <div className="flex items-start gap-3">
@@ -462,7 +498,7 @@ const CartPage: React.FC = () => {
             <button
               onClick={() => handleCheckout(false)}
               disabled={isLoading || isBelowMinimum}
-              className={`w-full bg-[#63D7B2] text-white py-3 rounded-lg transition-colors ${
+              className={`w-full bg-[#63D7B2] text-white py-3 rounded-lg transition-colors mt-8 ${
                 isLoading || isBelowMinimum
                   ? 'opacity-75 cursor-not-allowed'
                   : 'hover:bg-[#47C09A]'
@@ -471,7 +507,7 @@ const CartPage: React.FC = () => {
               {isLoading ? 'Bezig met laden...' : isBelowMinimum ? `Minimaal €${MINIMUM_ORDER_AMOUNT} nodig` : 'Afrekenen'}
             </button>
             <p className="text-sm text-gray-600 mt-4 text-center">
-              Veilig betalen met iDEAL, creditcard of PayPal
+            *Verzendkosten worden berekend op de volgende pagina
             </p>
           </div>
         </div>
