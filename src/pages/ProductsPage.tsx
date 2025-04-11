@@ -97,6 +97,8 @@ const CATEGORY_MAPPING: Categories = {
   }
 };
 
+export { CATEGORY_MAPPING };
+
 const PRODUCT_CARD_FRAGMENT = gql`
   fragment ProductCard on Product {
     id
