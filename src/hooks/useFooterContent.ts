@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { contentfulClient } from '../services/contentful';
-import { Document } from '@contentful/rich-text-types';
+import { loadContentfulData } from '../data/contentfulData';
+import { Document, BLOCKS } from '@contentful/rich-text-types';
 
 interface FooterLink {
   fields: {
@@ -26,7 +26,7 @@ export function useFooterContent(): FooterContent {
     col1Title: '',
     col1: [],
     col1Text: {
-      nodeType: 'document',
+      nodeType: BLOCKS.DOCUMENT,
       data: {},
       content: []
     },
@@ -40,36 +40,27 @@ export function useFooterContent(): FooterContent {
 
   useEffect(() => {
     const fetchFooter = async () => {
-      if (!contentfulClient) {
-        setError('Contentful client not initialized');
-        setIsLoading(false);
-        return;
-      }
-
       try {
-        const response = await contentfulClient.getEntries({
-          content_type: 'footer',
-          limit: 1
-        });
-
-        if (response.items.length > 0) {
-          const footerData = response.items[0].fields;
+        const data = await loadContentfulData();
+        if (data.footer) {
           setContent({
-            col1Title: footerData.col1Title || '',
-            col1: footerData.col1 || [],
-            col1Text: footerData.col1text || {
-              nodeType: 'document',
+            col1Title: data.footer.col1Title || '',
+            col1: data.footer.col1 || [],
+            col1Text: data.footer.col1Text || {
+              nodeType: BLOCKS.DOCUMENT,
               data: {},
               content: []
             },
-            col2title: footerData.col2title || '',
-            col2: footerData.col2 || [],
-            col3title: footerData.col3title || '',
-            col3: footerData.col3 || []
+            col2title: data.footer.col2title || '',
+            col2: data.footer.col2 || [],
+            col3title: data.footer.col3title || '',
+            col3: data.footer.col3 || []
           });
+        } else {
+          setError('Footer data not found');
         }
       } catch (err) {
-        console.error('Error fetching footer content:', err);
+        console.error('Error loading footer content:', err);
         setError('Failed to load footer content');
       } finally {
         setIsLoading(false);

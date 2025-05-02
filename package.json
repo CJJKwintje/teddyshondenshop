@@ -15,6 +15,7 @@
     "@contentful/rich-text-react-renderer": "^15.19.4",
     "@contentful/rich-text-types": "^16.3.4",
     "@netlify/functions": "^2.6.0",
+    "@tanstack/react-query": "^5.74.4",
     "@types/js-cookie": "^3.0.6",
     "@types/next": "^8.0.7",
     "esbuild": "0.25.2",

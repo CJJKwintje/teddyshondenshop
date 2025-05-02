@@ -28,6 +28,8 @@ import { CookieProvider } from './context/CookieContext';
 import { GoogleTagManagerScript, GoogleTagManagerNoScript } from './components/GoogleTagManager';
 import { usePageTracking } from './hooks/usePageTracking';
 import FAQPage from './pages/FAQPage';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ContentfulDataTest } from './components/test/ContentfulDataTest';
 
 // Create a separate component for the routes that needs access to router hooks
 function AppContent() {
@@ -53,6 +55,7 @@ function AppContent() {
         <Route path="/account/reset/:customerId/:resetToken" element={<AccountPage />} />
         <Route path="/veelgestelde-vragen" element={<FAQPage />} />
         <Route path="/:slug" element={<ContentPage />} />
+        <Route path="/test-contentful" element={<ContentfulDataTest />} />
       </Routes>
       <CartPreview />
       <Footer />
@@ -61,26 +64,39 @@ function AppContent() {
   );
 }
 
+// Create a single QueryClient instance
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 30, // 30 minutes
+      retry: false,
+    },
+  },
+});
+
 function App() {
   return (
-    <HelmetProvider>
-      <ErrorBoundary>
-        <UrqlProvider value={shopifyClient}>
-          <CustomerProvider>
-            <BrowserRouter>
-              <CartProvider>
-                <CookieProvider>
-                  <GoogleTagManagerScript />
-                  <GoogleTagManagerNoScript />
-                  <ScrollToTop />
-                  <AppContent />
-                </CookieProvider>
-              </CartProvider>
-            </BrowserRouter>
-          </CustomerProvider>
-        </UrqlProvider>
-      </ErrorBoundary>
-    </HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <HelmetProvider>
+        <ErrorBoundary>
+          <UrqlProvider value={shopifyClient}>
+            <CustomerProvider>
+              <BrowserRouter>
+                <CartProvider>
+                  <CookieProvider>
+                    <GoogleTagManagerScript />
+                    <GoogleTagManagerNoScript />
+                    <ScrollToTop />
+                    <AppContent />
+                  </CookieProvider>
+                </CartProvider>
+              </BrowserRouter>
+            </CustomerProvider>
+          </UrqlProvider>
+        </ErrorBoundary>
+      </HelmetProvider>
+    </QueryClientProvider>
   );
 }
 
