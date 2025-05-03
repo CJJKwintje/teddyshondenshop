@@ -7,8 +7,6 @@
   NODE_VERSION = "20"
   NPM_FLAGS = "--no-optional"
   PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "false"
-  PUPPETEER_EXECUTABLE_PATH = "/opt/buildhome/.cache/puppeteer/chrome/linux-134.0.6998.35/chrome-linux64/chrome"
-  CHROME_BIN = "/opt/buildhome/.cache/puppeteer/chrome/linux-134.0.6998.35/chrome-linux64/chrome"
 
 [dev]
   targetPort = 5173

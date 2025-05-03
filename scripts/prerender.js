@@ -234,13 +234,6 @@ async function prerender() {
   }).listen(3000);
 
   try {
-    // Get Chrome executable path from environment or use default
-    const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH || 
-                      process.env.CHROME_BIN || 
-                      undefined;
-
-    console.log('\nChrome executable path:', chromePath || 'using default');
-
     console.log('\nLaunching browser...');
     const browser = await puppeteer.launch({
       headless: 'new',
@@ -253,8 +246,7 @@ async function prerender() {
         '--no-zygote',
         '--single-process',
         '--disable-extensions'
-      ],
-      executablePath: chromePath
+      ]
     });
 
     for (const route of allRoutes) {
