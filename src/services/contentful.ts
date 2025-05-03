@@ -1,10 +1,22 @@
+// NODE/SSR ONLY: Do not import this file in browser code.
 import { createClient } from 'contentful';
 import { Document } from '@contentful/rich-text-types';
 import { FAQPage, FAQCategory, FAQEntry } from '../types/content';
 import { loadContentfulData } from '../data/contentfulData';
 
-const SPACE_ID = import.meta.env.VITE_CONTENTFUL_SPACE_ID;
-const ACCESS_TOKEN = import.meta.env.VITE_CONTENTFUL_ACCESS_TOKEN;
+// Helper to get env vars in both browser and Node.js
+function getEnvVar(name: string) {
+  if (typeof import.meta !== 'undefined' && import.meta.env && name in import.meta.env) {
+    return import.meta.env[name];
+  }
+  if (typeof process !== 'undefined' && process.env && name in process.env) {
+    return process.env[name];
+  }
+  return undefined;
+}
+
+const SPACE_ID = getEnvVar('VITE_CONTENTFUL_SPACE_ID');
+const ACCESS_TOKEN = getEnvVar('VITE_CONTENTFUL_ACCESS_TOKEN');
 
 // Add debugging
 console.log('Contentful Config:', {
