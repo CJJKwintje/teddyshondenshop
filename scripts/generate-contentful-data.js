@@ -131,9 +131,18 @@ async function generateContentfulData() {
   };
 
   // Write to public/contentful-data.json
-  const outputPath = path.join(process.cwd(), 'public', 'contentful-data.json');
-  fs.writeFileSync(outputPath, JSON.stringify(data, null, 2));
+  const publicPath = path.join(process.cwd(), 'public', 'contentful-data.json');
+  fs.writeFileSync(publicPath, JSON.stringify(data, null, 2));
   console.log('✓ Wrote Contentful data to public/contentful-data.json');
+
+  // Also write to public/assets/contentful-data.json for development
+  const assetsDir = path.join(process.cwd(), 'public', 'assets');
+  if (!fs.existsSync(assetsDir)) {
+    fs.mkdirSync(assetsDir, { recursive: true });
+  }
+  const assetsPath = path.join(assetsDir, 'contentful-data.json');
+  fs.writeFileSync(assetsPath, JSON.stringify(data, null, 2));
+  console.log('✓ Wrote Contentful data to public/assets/contentful-data.json');
 }
 
 generateContentfulData().catch((err) => {
