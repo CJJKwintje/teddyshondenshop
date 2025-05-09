@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Provider as UrqlProvider } from 'urql';
 import { HelmetProvider } from 'react-helmet-async';
@@ -30,6 +30,7 @@ import { usePageTracking } from './hooks/usePageTracking';
 import FAQPage from './pages/FAQPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ContentfulDataTest } from './components/test/ContentfulDataTest';
+import { loadContentfulData } from './data/contentfulData';
 
 // Create a separate component for the routes that needs access to router hooks
 function AppContent() {
@@ -76,6 +77,22 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  const [contentfulLoaded, setContentfulLoaded] = useState(false);
+
+  useEffect(() => {
+    const checkContentfulData = async () => {
+      try {
+        const data = await loadContentfulData();
+        if (data && Object.keys(data).length > 0) {
+          setContentfulLoaded(true);
+        }
+      } catch (error) {
+        console.error('Error checking Contentful data:', error);
+      }
+    };
+    checkContentfulData();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <HelmetProvider>
@@ -88,7 +105,9 @@ function App() {
                     <GoogleTagManagerScript />
                     <GoogleTagManagerNoScript />
                     <ScrollToTop />
-                    <AppContent />
+                    <div id="root" data-contentful-loaded={contentfulLoaded}>
+                      <AppContent />
+                    </div>
                   </CookieProvider>
                 </CartProvider>
               </BrowserRouter>

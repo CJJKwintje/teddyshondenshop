@@ -119,12 +119,12 @@ export const contentfulDataStore: ContentfulDataStore = {
 // Helper function to load data from a JSON file
 export const loadContentfulData = async (): Promise<ContentfulDataStore> => {
   try {
-    // Try to load from the root path first (production)
-    let response = await fetch('/contentful-data.json');
+    // Try to load from the assets path first (production)
+    let response = await fetch('/assets/contentful-data.json');
     
-    // If that fails, try the assets path (development)
+    // If that fails, try the root path (development)
     if (!response.ok) {
-      response = await fetch('/assets/contentful-data.json');
+      response = await fetch('/contentful-data.json');
     }
     
     if (!response.ok) {
