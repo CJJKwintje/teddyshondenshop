@@ -35,6 +35,8 @@ import { useContentfulData } from './hooks/useContentfulData';
 // Create a separate component for the routes that needs access to router hooks
 function AppContent() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { data, isLoading } = useContentfulData();
+  const contentfulLoaded = !!(data && Object.keys(data).length > 0);
   usePageTracking();
 
   return (
@@ -77,9 +79,6 @@ const queryClient = new QueryClient({
 });
 
 function App() {
-  const { data, isLoading } = useContentfulData();
-  const contentfulLoaded = !!(data && Object.keys(data).length > 0);
-
   return (
     <QueryClientProvider client={queryClient}>
       <HelmetProvider>
@@ -92,9 +91,7 @@ function App() {
                     <GoogleTagManagerScript />
                     <GoogleTagManagerNoScript />
                     <ScrollToTop />
-                    <div id="root" data-contentful-loaded={contentfulLoaded}>
-                      <AppContent />
-                    </div>
+                    <AppContent />
                   </CookieProvider>
                 </CartProvider>
               </BrowserRouter>
