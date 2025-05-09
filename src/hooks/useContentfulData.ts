@@ -37,4 +37,13 @@ export function useContentfulBrands() {
     staleTime: Infinity, // Data is static, never stale
     gcTime: Infinity, // Keep in cache forever
   });
+}
+
+export function useContentfulData() {
+  return useQuery({
+    queryKey: [queryKeys.contentfulData],
+    queryFn: loadAllContentfulData,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
 } 

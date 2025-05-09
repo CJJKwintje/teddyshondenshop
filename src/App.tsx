@@ -30,7 +30,7 @@ import { usePageTracking } from './hooks/usePageTracking';
 import FAQPage from './pages/FAQPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ContentfulDataTest } from './components/test/ContentfulDataTest';
-import { loadContentfulData } from './data/contentfulData';
+import { useContentfulData } from './hooks/useContentfulData';
 
 // Create a separate component for the routes that needs access to router hooks
 function AppContent() {
@@ -77,21 +77,8 @@ const queryClient = new QueryClient({
 });
 
 function App() {
-  const [contentfulLoaded, setContentfulLoaded] = useState(false);
-
-  useEffect(() => {
-    const checkContentfulData = async () => {
-      try {
-        const data = await loadContentfulData();
-        if (data && Object.keys(data).length > 0) {
-          setContentfulLoaded(true);
-        }
-      } catch (error) {
-        console.error('Error checking Contentful data:', error);
-      }
-    };
-    checkContentfulData();
-  }, []);
+  const { data, isLoading } = useContentfulData();
+  const contentfulLoaded = !!(data && Object.keys(data).length > 0);
 
   return (
     <QueryClientProvider client={queryClient}>
