@@ -1,16 +1,18 @@
 // Component for displaying a grid of category cards
 import { Link } from 'react-router-dom';
-import { useNavigation } from '../hooks/useNavigation';
+import type { NavigationCategory, CategoryPage } from '../services/contentful';
 
-export default function CategoryGrid() {
-  const { categories: contentfulCategories } = useNavigation();
+interface CategoryGridProps {
+  categories: Array<NavigationCategory & { categoryPage: CategoryPage | null }>;
+}
 
+export default function CategoryGrid({ categories }: CategoryGridProps) {
   // Debug log
-  console.log('CategoryGrid - Categories:', contentfulCategories);
+  console.log('CategoryGrid - Categories:', categories);
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-      {contentfulCategories.map((category, index) => {
+      {categories.map((category, index) => {
         const { categoryPage } = category;
         if (!categoryPage) return null;
 

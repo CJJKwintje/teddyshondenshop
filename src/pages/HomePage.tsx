@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from 'urql';
 import { gql } from 'urql';
 import { Dog, Bone, Cookie, MapPin, Moon, Scissors, Shirt, Loader2 } from 'lucide-react';
@@ -12,6 +12,8 @@ import BrandLogos from '../components/BrandLogos';
 import CategoryGrid from '../components/CategoryGrid';
 import { subscribeToNewsletter } from '../services/shopify';
 import BannerSlider from '../components/BannerSlider';
+import { useContentfulBanners, useContentfulBrands } from '../hooks/useContentfulData';
+import { useNavigation } from '../hooks/useNavigation';
 
 const PRODUCTS_QUERY = gql`
   query GetProducts($collectionId: ID!) {
@@ -61,58 +63,6 @@ const PRODUCTS_QUERY = gql`
   }
 `;
 
-const categories = [
-  {
-    icon: Dog as React.FC<{ size: number; className: string }>,
-    title: 'Voeding',
-    description: 'Premium voeding voor jouw hond',
-    path: '/categorie/hondenvoeding',
-    color: 'bg-amber-500'
-  },
-  {
-    icon: Cookie as React.FC<{ size: number; className: string }>,
-    title: 'Snacks',
-    description: 'Gezonde beloningen & treats',
-    path: '/categorie/hondensnacks',
-    color: 'bg-green-500'
-  },
-  {
-    icon: MapPin as React.FC<{ size: number; className: string }>,
-    title: 'Op stap',
-    description: 'Riemen, halsbanden & meer',
-    path: '/categorie/hondenriemen',
-    color: 'bg-blue-500'
-  },
-  {
-    icon: Moon as React.FC<{ size: number; className: string }>,
-    title: 'Slapen',
-    description: 'Comfortabele manden & kussens',
-    path: '/categorie/hondenmanden',
-    color: 'bg-indigo-500'
-  },
-  {
-    icon: Scissors as React.FC<{ size: number; className: string }>,
-    title: 'Verzorging',
-    description: 'Complete vacht- & gezondheidsproducten',
-    path: '/categorie/vachtverzorging',
-    color: 'bg-purple-500'
-  },
-  {
-    icon: Bone as React.FC<{ size: number; className: string }>,
-    title: 'Spelen',
-    description: 'Speelgoed & training voor urenlang plezier',
-    path: '/categorie/hondenspeelgoed',
-    color: 'bg-rose-500'
-  },
-  {
-    icon: Shirt as React.FC<{ size: number; className: string }>,
-    title: 'Kleding',
-    description: 'Jassen & accessoires voor elk seizoen',
-    path: '/categorie/hondenjassen',
-    color: 'bg-teal-500'
-  }
-];
-
 const getBackgroundColor = (color?: string) => {
   // Default color if none provided
   if (!color) return 'bg-sky-500';
@@ -149,49 +99,20 @@ const HomePage: React.FC = () => {
       collectionId: "gid://shopify/Collection/646804570446"
     }
   });
-  const { data, fetching, error } = result;
-  const [banners, setBanners] = useState<HomepageBanner[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [bannersLoading, setBannersLoading] = useState(true);
-  const [brandsLoading, setBrandsLoading] = useState(true);
+  const { data: shopifyData, fetching, error } = result;
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{ success?: boolean; error?: string } | null>(null);
 
-  useEffect(() => {
-    const loadBanners = async () => {
-      try {
-        const bannerData = await getHomepageBanners();
-        // Sort banners by orderId
-        const sortedBanners = bannerData.sort((a, b) => a.orderId - b.orderId);
-        console.log('Loaded banners:', sortedBanners);
-        setBanners(sortedBanners);
-      } catch (error) {
-        console.error('Error loading banners:', error);
-      } finally {
-        setBannersLoading(false);
-      }
-    };
+  // Get data using React Query
+  const { categories, isLoading: isCategoriesLoading } = useNavigation();
+  const { data: banners, isLoading: isBannersLoading } = useContentfulBanners();
+  const { data: brands, isLoading: isBrandsLoading } = useContentfulBrands();
 
-    const loadBrands = async () => {
-      try {
-        const brandData = await getBrands();
-        setBrands(brandData);
-      } catch (error) {
-        console.error('Error loading brands:', error);
-      } finally {
-        setBrandsLoading(false);
-      }
-    };
-
-    loadBanners();
-    loadBrands();
-  }, []);
-
-  const bestSellingProducts = useMemo(() => {
-    if (!data?.collection?.products?.edges) return [];
-    return data.collection.products.edges.map(({ node }: any) => node);
-  }, [data?.collection?.products?.edges]);
+  const bestSellingProducts = React.useMemo(() => {
+    if (!shopifyData?.collection?.products?.edges) return [];
+    return shopifyData.collection.products.edges.map(({ node }: any) => node);
+  }, [shopifyData?.collection?.products?.edges]);
 
   const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -227,12 +148,12 @@ const HomePage: React.FC = () => {
         />
 
         <section className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-12">
-          {bannersLoading ? (
+          {isBannersLoading ? (
             <>
               <BannerSkeleton />
               <BannerSkeleton isSmall />
             </>
-          ) : (
+          ) : banners && banners.length > 0 ? (
             <>
               {/* Main Banner (orderId: 1) */}
               <div className={`col-span-2 lg:col-span-2 order-1 rounded-lg overflow-hidden relative min-h-[200px] md:min-h-[300px] group ${getBackgroundColor(banners.find(b => b.orderId === 1)?.backgroundColor)}`}>
@@ -291,13 +212,13 @@ const HomePage: React.FC = () => {
               </div>
 
               {/* Additional Banners Slider */}
-              {!bannersLoading && banners.filter(b => b.orderId >= 3).length > 0 && (
+              {banners.filter(b => b.orderId >= 3).length > 0 && (
                 <div className="col-span-2 lg:col-span-3 order-2 lg:order-3">
                   <BannerSlider banners={banners.filter(b => b.orderId >= 3)} />
                 </div>
               )}
             </>
-          )}
+          ) : null}
         </section>
 
         {/* Featured Products */}
@@ -361,11 +282,17 @@ const HomePage: React.FC = () => {
         {/* Categories Grid */}
         <section className="mb-12">
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Ontdek onze categorieën</h2>
-          <CategoryGrid />
+          {isCategoriesLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+          ) : (
+            <CategoryGrid categories={categories} />
+          )}
         </section>
 
         {/* Brand Logos */}
-        {!brandsLoading && brands.length > 0 && (
+        {!isBrandsLoading && brands && brands.length > 0 && (
           <BrandLogos brands={brands} />
         )}
 

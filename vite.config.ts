@@ -10,6 +10,14 @@ export default defineConfig({
         {
           src: '_redirects',
           dest: ''
+        },
+        {
+          src: 'contentful-data.json',
+          dest: ''
+        },
+        {
+          src: 'contentful-data.json',
+          dest: 'assets'
         }
       ]
     })
@@ -22,6 +30,14 @@ export default defineConfig({
       include: [/node_modules/],
       transformMixedEsModules: true,
     },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          contentful: ['contentful']
+        }
+      }
+    }
   },
   server: {
     proxy: {
