@@ -1,9 +1,22 @@
+// NODE/SSR ONLY: Do not import this file in browser code.
 import { createClient } from 'contentful';
 import { Document } from '@contentful/rich-text-types';
 import { FAQPage, FAQCategory, FAQEntry } from '../types/content';
+import { loadContentfulData } from '../data/contentfulData';
 
-const SPACE_ID = import.meta.env.VITE_CONTENTFUL_SPACE_ID;
-const ACCESS_TOKEN = import.meta.env.VITE_CONTENTFUL_ACCESS_TOKEN;
+// Helper to get env vars in both browser and Node.js
+function getEnvVar(name: string) {
+  if (typeof import.meta !== 'undefined' && import.meta.env && name in import.meta.env) {
+    return import.meta.env[name];
+  }
+  if (typeof process !== 'undefined' && process.env && name in process.env) {
+    return process.env[name];
+  }
+  return undefined;
+}
+
+const SPACE_ID = getEnvVar('VITE_CONTENTFUL_SPACE_ID');
+const ACCESS_TOKEN = getEnvVar('VITE_CONTENTFUL_ACCESS_TOKEN');
 
 // Add debugging
 console.log('Contentful Config:', {
@@ -140,39 +153,9 @@ export const getContentfulPage = async (entryId: string): Promise<ContentfulPage
 };
 
 export const getCategoryPageBySlug = async (slug: string): Promise<CategoryPage | null> => {
-  if (!contentfulClient) {
-    console.warn('Contentful client not initialized - missing environment variables');
-    return null;
-  }
-
-  try {
-    const entries = await contentfulClient.getEntries({
-      content_type: 'categoryPage',
-      'fields.slug': slug,
-      limit: 1,
-    });
-
-    if (entries.items.length === 0) {
-      return null;
-    }
-
-    const entry = entries.items[0];
-    return {
-      title: entry.fields.title as string,
-      slug: entry.fields.slug as string,
-      description: entry.fields.description as Document,
-      seoTitle: entry.fields.seoTitle as string,
-      seoDescription: entry.fields.seoDescription as string,
-      bannerImage: entry.fields.bannerImage as any,
-      bannerImageMobile: entry.fields.bannerImageMobile as any,
-      bannerTitle: entry.fields.bannerTitle as string,
-      bannerSubtitle: entry.fields.bannerSubtitle as string,
-      bannerBackgroundColor: entry.fields.bannerBackgroundColor as string,
-    };
-  } catch (error) {
-    console.error('Error fetching category page:', error);
-    return null;
-  }
+  const data = await loadContentfulData();
+  const page = data.categoryPages.find((cat) => cat.slug === slug);
+  return page || null;
 };
 
 export const getAllLegalPages = async (): Promise<LegalPage[]> => {
@@ -274,53 +257,9 @@ export const getBrands = async (): Promise<Brand[]> => {
 };
 
 export const getNavigation = async (): Promise<NavigationCategory[]> => {
-  if (!contentfulClient) {
-    console.warn('Contentful client not initialized - missing environment variables');
-    return [];
-  }
-
-  try {
-    const entries = await contentfulClient.getEntries({
-      content_type: 'navigation',
-      include: 2, // Include 2 levels of linked entries
-    });
-
-    return entries.items.map(entry => {
-      const fields = entry.fields;
-      const mainCategorySlug = generateSlug(fields.mainCategory as string);
-      const order = fields.order as number;
-
-      return {
-        mainCategory: fields.mainCategory as string,
-        slug: mainCategorySlug,
-        linkTitle: fields.linkTitle as string,
-        link: (fields.link as any[] || []).map(link => ({
-          fields: {
-            ...link.fields,
-            slug: generateSlug(link.fields.title)
-          }
-        })),
-        linkTitle2: fields.linkTitle2 as string,
-        link2: (fields.link2 as any[] || []).map(link => ({
-          fields: {
-            ...link.fields,
-            slug: generateSlug(link.fields.title)
-          }
-        })),
-        linkTitle3: fields.linkTitle3 as string,
-        link3: (fields.link3 as any[] || []).map(link => ({
-          fields: {
-            ...link.fields,
-            slug: generateSlug(link.fields.title)
-          }
-        })),
-        order
-      };
-    });
-  } catch (error) {
-    console.error('Error fetching navigation:', error);
-    return [];
-  }
+  const data = await loadContentfulData();
+  // The navigation data is already in the correct format
+  return data.navigation;
 };
 
 export const getCategoryPage = async (categorySlug: string, subCategorySlug: string): Promise<NavigationLink | null> => {
@@ -458,5 +397,34 @@ export const getFAQPage = async (slug: string): Promise<FAQPage | null> => {
   } catch (error) {
     console.error('Error fetching FAQ page:', error);
     return null;
+  }
+};
+
+export const getCategories = async (): Promise<CategoryPage[]> => {
+  if (!contentfulClient) {
+    console.warn('Contentful client not initialized - missing environment variables');
+    return [];
+  }
+
+  try {
+    const entries = await contentfulClient.getEntries({
+      content_type: 'categoryPage',
+    });
+
+    return entries.items.map(entry => ({
+      title: entry.fields.title as string,
+      slug: entry.fields.slug as string,
+      description: entry.fields.description as Document,
+      seoTitle: entry.fields.seoTitle as string,
+      seoDescription: entry.fields.seoDescription as string,
+      bannerImage: entry.fields.bannerImage as any,
+      bannerImageMobile: entry.fields.bannerImageMobile as any,
+      bannerTitle: entry.fields.bannerTitle as string,
+      bannerSubtitle: entry.fields.bannerSubtitle as string,
+      bannerBackgroundColor: entry.fields.bannerBackgroundColor as string,
+    }));
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    return [];
   }
 };

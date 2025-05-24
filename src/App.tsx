@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Provider as UrqlProvider } from 'urql';
 import { HelmetProvider } from 'react-helmet-async';
@@ -28,10 +28,15 @@ import { CookieProvider } from './context/CookieContext';
 import { GoogleTagManagerScript, GoogleTagManagerNoScript } from './components/GoogleTagManager';
 import { usePageTracking } from './hooks/usePageTracking';
 import FAQPage from './pages/FAQPage';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ContentfulDataTest } from './components/test/ContentfulDataTest';
+import { useContentfulData } from './hooks/useContentfulData';
 
 // Create a separate component for the routes that needs access to router hooks
 function AppContent() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { data, isLoading } = useContentfulData();
+  const contentfulLoaded = !!(data && Object.keys(data).length > 0);
   usePageTracking();
 
   return (
@@ -53,6 +58,7 @@ function AppContent() {
         <Route path="/account/reset/:customerId/:resetToken" element={<AccountPage />} />
         <Route path="/veelgestelde-vragen" element={<FAQPage />} />
         <Route path="/:slug" element={<ContentPage />} />
+        <Route path="/test-contentful" element={<ContentfulDataTest />} />
       </Routes>
       <CartPreview />
       <Footer />
@@ -61,26 +67,39 @@ function AppContent() {
   );
 }
 
+// Create a single QueryClient instance
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 30, // 30 minutes
+      retry: false,
+    },
+  },
+});
+
 function App() {
   return (
-    <HelmetProvider>
-      <ErrorBoundary>
-        <UrqlProvider value={shopifyClient}>
-          <CustomerProvider>
-            <BrowserRouter>
-              <CartProvider>
-                <CookieProvider>
-                  <GoogleTagManagerScript />
-                  <GoogleTagManagerNoScript />
-                  <ScrollToTop />
-                  <AppContent />
-                </CookieProvider>
-              </CartProvider>
-            </BrowserRouter>
-          </CustomerProvider>
-        </UrqlProvider>
-      </ErrorBoundary>
-    </HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <HelmetProvider>
+        <ErrorBoundary>
+          <UrqlProvider value={shopifyClient}>
+            <CustomerProvider>
+              <BrowserRouter>
+                <CartProvider>
+                  <CookieProvider>
+                    <GoogleTagManagerScript />
+                    <GoogleTagManagerNoScript />
+                    <ScrollToTop />
+                    <AppContent />
+                  </CookieProvider>
+                </CartProvider>
+              </BrowserRouter>
+            </CustomerProvider>
+          </UrqlProvider>
+        </ErrorBoundary>
+      </HelmetProvider>
+    </QueryClientProvider>
   );
 }
 
